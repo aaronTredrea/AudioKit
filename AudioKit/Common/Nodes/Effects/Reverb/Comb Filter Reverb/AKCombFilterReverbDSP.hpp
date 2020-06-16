@@ -12,14 +12,14 @@
 
 typedef NS_ENUM(AUParameterAddress, AKCombFilterReverbParameter) {
     AKCombFilterReverbParameterReverbDuration,
-    AKCombFilterReverbParameterRampDuration
+    AKCombFilterReverbParameterRampTime
 };
 
 #import "AKLinearParameterRamp.hpp"  // have to put this here to get it included in umbrella header
 
 #ifndef __cplusplus
 
-AKDSPRef createCombFilterReverbDSP(int channelCount, double sampleRate);
+void* createCombFilterReverbDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -27,12 +27,12 @@ AKDSPRef createCombFilterReverbDSP(int channelCount, double sampleRate);
 
 class AKCombFilterReverbDSP : public AKSoundpipeDSPBase {
 
-    sp_comb *comb0;
-    sp_comb *comb1;
+    sp_comb *_comb0;
+    sp_comb *_comb1;
 
 private:
     AKLinearParameterRamp reverbDurationRamp;
-    float loopDuration = 0.1;
+    float _loopDuration = 0.1;
 
 public:
     AKCombFilterReverbDSP() {
@@ -41,45 +41,46 @@ public:
     }
 
     void initializeConstant(float duration) override {
-        loopDuration = duration;
+        _loopDuration = duration;
     }
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     void setParameter(AUParameterAddress address, float value, bool immediate) override {
         switch (address) {
             case AKCombFilterReverbParameterReverbDuration:
                 reverbDurationRamp.setTarget(value, immediate);
                 break;
-            case AKCombFilterReverbParameterRampDuration:
-                reverbDurationRamp.setRampDuration(value, sampleRate);
+            case AKCombFilterReverbParameterRampTime:
+                reverbDurationRamp.setRampTime(value, _sampleRate);
                 break;
         }
     }
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     float getParameter(AUParameterAddress address) override {
         switch (address) {
             case AKCombFilterReverbParameterReverbDuration:
                 return reverbDurationRamp.getTarget();
-            case AKCombFilterReverbParameterRampDuration:
-                return reverbDurationRamp.getRampDuration(sampleRate);
+            case AKCombFilterReverbParameterRampTime:
+                return reverbDurationRamp.getRampTime(_sampleRate);
         }
         return 0;
     }
 
-    void init(int channelCount, double sampleRate) override {
-        AKSoundpipeDSPBase::init(channelCount, sampleRate);
-        sp_comb_create(&comb0);
-        sp_comb_create(&comb1);
-        sp_comb_init(sp, comb0, loopDuration);
-        sp_comb_init(sp, comb1, loopDuration);
-        comb0->revtime = 1.0;
-        comb1->revtime = 1.0;
+    void init(int _channels, double _sampleRate) override {
+        AKSoundpipeDSPBase::init(_channels, _sampleRate);
+        sp_comb_create(&_comb0);
+        sp_comb_create(&_comb1);
+        sp_comb_init(_sp, _comb0, _loopDuration);
+        sp_comb_init(_sp, _comb1, _loopDuration);
+        _comb0->revtime = 1.0;
+        _comb1->revtime = 1.0;
     }
 
-    void deinit() override {
-        sp_comb_destroy(&comb0);
-        sp_comb_destroy(&comb1);
+    void destroy() {
+        sp_comb_destroy(&_comb0);
+        sp_comb_destroy(&_comb1);
+        AKSoundpipeDSPBase::destroy();
     }
 
     void process(uint32_t frameCount, uint32_t bufferOffset) override {
@@ -89,32 +90,31 @@ public:
 
             // do ramping every 8 samples
             if ((frameOffset & 0x7) == 0) {
-                reverbDurationRamp.advanceTo(now + frameOffset);
+                reverbDurationRamp.advanceTo(_now + frameOffset);
             }
-            comb0->revtime = reverbDurationRamp.getValue();
-            comb1->revtime = reverbDurationRamp.getValue();            
+            _comb0->revtime = reverbDurationRamp.getValue();
+            _comb1->revtime = reverbDurationRamp.getValue();            
 
             float *tmpin[2];
             float *tmpout[2];
-            for (int channel = 0; channel < channelCount; ++channel) {
-                float *in  = (float *)inBufferListPtr->mBuffers[channel].mData  + frameOffset;
-                float *out = (float *)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+            for (int channel = 0; channel < _nChannels; ++channel) {
+                float* in  = (float*)_inBufferListPtr->mBuffers[channel].mData  + frameOffset;
+                float* out = (float*)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
 
                 if (channel < 2) {
                     tmpin[channel] = in;
                     tmpout[channel] = out;
                 }
-                if (!isStarted) {
+                if (!_playing) {
                     *out = *in;
-                    continue;
                 }
                 if (channel == 0) {
-                    sp_comb_compute(sp, comb0, in, out);
+                    sp_comb_compute(_sp, _comb0, in, out);
                 } else {
-                    sp_comb_compute(sp, comb1, in, out);
+                    sp_comb_compute(_sp, _comb1, in, out);
                 }
             }
-            if (isStarted) {
+            if (_playing) {
             }
         }
     }

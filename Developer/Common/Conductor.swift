@@ -40,7 +40,7 @@ class Conductor {
 
         // MIDI Configure
         midi.createVirtualPorts()
-        midi.openInput(name: "Session 1")
+        midi.openInput("Session 1")
         midi.openOutput()
 
         // Session settings
@@ -83,12 +83,12 @@ class Conductor {
 
     func openMIDIInput(byName: String) {
         midi.closeAllInputs()
-        midi.openInput(name: byName)
+        midi.openInput(byName)
     }
 
     func openMIDIInput(byIndex: Int) {
         midi.closeAllInputs()
-        midi.openInput(index: byIndex)
+        midi.openInput(midi.inputNames[byIndex])
     }
 
     func getWaveformName() -> String {
@@ -100,7 +100,7 @@ class Conductor {
         guard i >= 0 && i <= 3 else { return }
         if (i != waveformIndex) {
             waveformIndex = i
-            AKLog("Change waveform to \(getWaveformName())")
+            print("Change waveform to \(getWaveformName())")
             oscillator.waveform = waveforms[i]
         }
     }
@@ -121,7 +121,7 @@ class Conductor {
         }
     }
 
-    func aftertouch(_ pressure: MIDIByte) {
+    func afterTouch(_ pressure: MIDIByte) {
     }
 
     func controller(_ controller: MIDIByte, value: MIDIByte) {

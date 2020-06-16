@@ -13,21 +13,21 @@
 typedef NS_ENUM(AUParameterAddress, AKClarinetParameter) {
     AKClarinetParameterFrequency,
     AKClarinetParameterAmplitude,
-    AKClarinetParameterRampDuration
+    AKClarinetParameterRampTime
 };
 
 #import "AKLinearParameterRamp.hpp"  // have to put this here to get it included in umbrella header
 
 #ifndef __cplusplus
 
-AKDSPRef createClarinetDSP(int channelCount, double sampleRate);
+void* createClarinetDSP(int nChannels, double sampleRate);
 
 #else
 
 class AKClarinetDSP : public AKDSPBase {
 private:
-    struct InternalData;
-    std::unique_ptr<InternalData> data;
+    struct _Internal;
+    std::unique_ptr<_Internal> _private;
 
 public:
 
@@ -35,13 +35,13 @@ public:
     
     ~AKClarinetDSP();
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     void setParameter(AUParameterAddress address, float value, bool immediate) override;
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     float getParameter(AUParameterAddress address) override;
 
-    void init(int channelCount, double sampleRate) override;
+    void init(int _channels, double _sampleRate) override;
 
     void trigger() override;
 

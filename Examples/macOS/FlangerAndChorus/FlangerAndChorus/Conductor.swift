@@ -40,7 +40,7 @@ class Conductor {
 
         // MIDI Configure
         midi.createVirtualPorts()
-        midi.openInput(name: "Session 1")
+        midi.openInput("Session 1")
         midi.openOutput()
 
         // Session settings
@@ -90,22 +90,22 @@ class Conductor {
         return midi.inputNames
     }
 
-    func openMIDIInput(name: String) {
+    func openMIDIInput(byName: String) {
         midi.closeAllInputs()
-        midi.openInput(name: name)
+        midi.openInput(byName)
     }
 
-    func openMIDIInput(at index: Int) {
+    func openMIDIInput(byIndex: Int) {
         midi.closeAllInputs()
-        midi.openInput(index: index)
+        midi.openInput(midi.inputNames[byIndex])
     }
 
     func playNote(note: MIDINoteNumber, velocity: MIDIVelocity, channel: MIDIChannel) {
-        oscillator.play(noteNumber: OffsetNote(note, semitones: semitoneOffset), velocity: velocity)
+        oscillator.play(noteNumber: OffsetNote(note, semitones:semitoneOffset), velocity: velocity)
     }
 
     func stopNote(note: MIDINoteNumber, channel: MIDIChannel) {
-        oscillator.stop(noteNumber: OffsetNote(note, semitones: semitoneOffset))
+        oscillator.stop(noteNumber: OffsetNote(note, semitones:semitoneOffset))
     }
 
     func allNotesOff() {
@@ -114,7 +114,7 @@ class Conductor {
         }
     }
 
-    func aftertouch(_ pressure: MIDIByte) {
+    func afterTouch(_ pressure: MIDIByte) {
     }
 
     func controller(_ controller: MIDIByte, value: MIDIByte) {

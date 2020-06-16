@@ -17,6 +17,7 @@ open class AKOscillator: AKNode, AKToggleable, AKComponent {
     // MARK: - Properties
 
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var waveform: AKTable?
 
@@ -49,22 +50,25 @@ open class AKOscillator: AKNode, AKToggleable, AKComponent {
     /// Initial value for Detuning Multiplier
     public static let defaultDetuningMultiplier = 1.0
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Frequency in cycles per second
     @objc open dynamic var frequency: Double = defaultFrequency {
         willSet {
-            guard frequency != newValue else { return }
-            if internalAU?.isSetUp == true {
-                frequencyParameter?.value = AUValue(newValue)
+            if frequency == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    frequencyParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.frequency, value: newValue)
         }
     }
@@ -72,12 +76,15 @@ open class AKOscillator: AKNode, AKToggleable, AKComponent {
     /// Output Amplitude.
     @objc open dynamic var amplitude: Double = defaultAmplitude {
         willSet {
-            guard amplitude != newValue else { return }
-            if internalAU?.isSetUp == true {
-                amplitudeParameter?.value = AUValue(newValue)
+            if amplitude == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    amplitudeParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.amplitude, value: newValue)
         }
     }
@@ -85,12 +92,15 @@ open class AKOscillator: AKNode, AKToggleable, AKComponent {
     /// Frequency offset in Hz.
     @objc open dynamic var detuningOffset: Double = defaultDetuningOffset {
         willSet {
-            guard detuningOffset != newValue else { return }
-            if internalAU?.isSetUp == true {
-                detuningOffsetParameter?.value = AUValue(newValue)
+            if detuningOffset == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    detuningOffsetParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.detuningOffset, value: newValue)
         }
     }
@@ -98,12 +108,15 @@ open class AKOscillator: AKNode, AKToggleable, AKComponent {
     /// Frequency detuning multiplier
     @objc open dynamic var detuningMultiplier: Double = defaultDetuningMultiplier {
         willSet {
-            guard detuningMultiplier != newValue else { return }
-            if internalAU?.isSetUp == true {
-                detuningMultiplierParameter?.value = AUValue(newValue)
+            if detuningMultiplier == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    detuningMultiplierParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.detuningMultiplier, value: newValue)
         }
     }
@@ -150,7 +163,6 @@ open class AKOscillator: AKNode, AKToggleable, AKComponent {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
             strongSelf.internalAU?.setupWaveform(Int32(waveform.count))
@@ -168,6 +180,18 @@ open class AKOscillator: AKNode, AKToggleable, AKComponent {
         amplitudeParameter = tree["amplitude"]
         detuningOffsetParameter = tree["detuningOffset"]
         detuningMultiplierParameter = tree["detuningMultiplier"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
         internalAU?.setParameterImmediately(.frequency, value: frequency)
         internalAU?.setParameterImmediately(.amplitude, value: amplitude)
         internalAU?.setParameterImmediately(.detuningOffset, value: detuningOffset)

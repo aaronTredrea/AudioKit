@@ -16,12 +16,12 @@ typedef NS_ENUM(AUParameterAddress, AKMorphingOscillatorParameter) {
     AKMorphingOscillatorParameterIndex,
     AKMorphingOscillatorParameterDetuningOffset,
     AKMorphingOscillatorParameterDetuningMultiplier,
-    AKMorphingOscillatorParameterRampDuration
+    AKMorphingOscillatorParameterRampTime
 };
 
 #ifndef __cplusplus
 
-AKDSPRef createMorphingOscillatorDSP(int channelCount, double sampleRate);
+void* createMorphingOscillatorDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -29,11 +29,12 @@ AKDSPRef createMorphingOscillatorDSP(int channelCount, double sampleRate);
 
 class AKMorphingOscillatorDSP : public AKSoundpipeDSPBase {
 private:
-    struct InternalData;
-    std::unique_ptr<InternalData> data;
+    struct _Internal;
+    std::unique_ptr<_Internal> _private;
  
 public:
     AKMorphingOscillatorDSP();
+    ~AKMorphingOscillatorDSP();
 
     float frequencyLowerBound = 0.0;
     float frequencyUpperBound = 22050.0;
@@ -52,7 +53,7 @@ public:
     float defaultDetuningOffset = 0;
     float defaultDetuningMultiplier = 1;
 
-    int defaultRampDurationSamples = 10000;
+    int defaultRampTimeSamples = 10000;
 
     // Uses the ParameterAddress as a key
     void setParameter(AUParameterAddress address, float value, bool immediate) override;
@@ -60,9 +61,9 @@ public:
     // Uses the ParameterAddress as a key
     float getParameter(AUParameterAddress address) override;
     
-    void init(int channelCount, double sampleRate) override;
+    void init(int _channels, double _sampleRate) override;
 
-    void deinit() override;
+    void destroy();
     void reset() override;
 
     void process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) override;

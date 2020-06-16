@@ -21,7 +21,7 @@ enum Sound: String {
 }
 
 class Conductor {
-    private var sequencer: AKAppleSequencer!
+    private var sequencer: AKSequencer!
     private var mixer = AKMixer()
     private var arpeggioSynthesizer = AKMIDISampler()
     private var padSynthesizer = AKMIDISampler()
@@ -42,7 +42,7 @@ class Conductor {
             useSound(.saw, synthesizer: .bass)
             try drumKit.loadEXS24("Sounds/Sampler Instruments/drumSimp")
         } catch {
-            AKLog("A file was not found.")
+            print("A file was not found.")
         }
         do {
             try AudioKit.start()
@@ -50,7 +50,7 @@ class Conductor {
             AKLog("AudioKit did not start!")
         }
 
-        sequencer = AKAppleSequencer(filename: "seqDemo")
+        sequencer = AKSequencer(filename: "seqDemo")
         sequencer.enableLooping()
         sequencer.tracks[1].setMIDIOutput(arpeggioSynthesizer.midiIn)
         sequencer.tracks[2].setMIDIOutput(bassSynthesizer.midiIn)
@@ -125,7 +125,7 @@ class Conductor {
                 try bassSynthesizer.loadEXS24(path)
             }
         } catch {
-            AKLog("Could not load EXS24")
+            print("Could not load EXS24")
         }
     }
 

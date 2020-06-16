@@ -1,5 +1,5 @@
 //
-//  AKRotaryKnob.swift
+//  AKBypassButton.swift
 //  AudioKit for iOS
 //
 //  Created by Aurelius Prochazka, revision history on Github.
@@ -7,7 +7,6 @@
 //
 
 import UIKit
-import AudioKit
 
 /// Style of knob to use
 public enum AKRotaryKnobStyle {
@@ -97,7 +96,7 @@ public enum AKRotaryKnobStyle {
    }
 
     /// Initialization within Interface Builder
-    public required init?(coder: NSCoder) {
+    required public init?(coder: NSCoder) {
         super.init(coder: coder)
         self.backgroundColor = UIColor.clear
 
@@ -106,27 +105,27 @@ public enum AKRotaryKnobStyle {
     }
 
     /// Actions to perform to make sure the view is renderable in Interface Builder
-    open override func prepareForInterfaceBuilder() {
+    override open func prepareForInterfaceBuilder() {
         super.prepareForInterfaceBuilder()
         clipsToBounds = true
     }
 
     func angleBetween(pointA: CGPoint, pointB: CGPoint) -> Double {
-        let deltaX = Double(pointB.x - pointA.x)
-        let deltaY = Double(pointB.y - pointA.y)
-        let radians = atan2(-deltaX, deltaY)
+        let dx = Double(pointB.x - pointA.x)
+        let dy = Double(pointB.y - pointA.y)
+        let radians = atan2(-dx, dy)
         let degrees = radians * 180 / Double.pi
         return degrees
     }
 
     /// Handle new touches
-    open override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override open func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         isDragging = true
         touchesMoved(touches, with: event)
     }
 
     /// Handle moved touches
-    open override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override open func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         if let touch = touches.first {
             let touchLocation = touch.location(in: self)
             if lastTouch.x != touchLocation.x {
@@ -153,48 +152,36 @@ public enum AKRotaryKnobStyle {
 
     /// Color for the arrow on the knob for the current theme
     open func indicatorColorForTheme() -> AKColor {
-        if let indicatorColor = indicatorColor {
-            return indicatorColor
-        }
+        if let indicatorColor = indicatorColor { return indicatorColor }
 
         switch AKStylist.sharedInstance.theme {
-        case .basic:
-            return AKColor(white: 0.3, alpha: 1.0)
-        case .midnight:
-            return AKColor.white
+        case .basic: return AKColor(white: 0.3, alpha: 1.0)
+        case .midnight: return AKColor.white
         }
     }
 
     /// Color for the border for the current theme
     open func knobBorderColorForTheme() -> AKColor {
-        if let knobBorderColor = knobBorderColor {
-            return knobBorderColor
-        }
+        if let knobBorderColor = knobBorderColor { return knobBorderColor }
 
         switch AKStylist.sharedInstance.theme {
-        case .basic:
-            return AKColor(white: 0.2, alpha: 1.0)
-        case .midnight:
-            return AKColor(white: 1.0, alpha: 1.0)
+        case .basic: return AKColor(white: 0.2, alpha: 1.0)
+        case .midnight: return AKColor(white: 1.0, alpha: 1.0)
         }
     }
 
     /// Text color for the current theme
     open func textColorForTheme() -> AKColor {
-        if let textColor = textColor {
-            return textColor
-        }
+        if let textColor = textColor { return textColor }
 
         switch AKStylist.sharedInstance.theme {
-        case .basic:
-            return AKColor(white: 0.3, alpha: 1.0)
-        case .midnight:
-            return AKColor.white
+        case .basic: return AKColor(white: 0.3, alpha: 1.0)
+        case .midnight: return AKColor.white
         }
     }
 
     /// Draw the knob
-    open override func draw(_ rect: CGRect) {
+    override open func draw(_ rect: CGRect) {
         drawKnob(currentValue: CGFloat(val),
                  propertyName: property,
                  currentValueText: String(format: format, value))
@@ -205,6 +192,7 @@ public enum AKRotaryKnobStyle {
                   propertyName: String = "Property Name",
                   currentValueText: String = "0.0") {
 
+        //// General Declarations
         guard let context = UIGraphicsGetCurrentContext() else {
             AKLog("No current graphics context")
             return
@@ -297,8 +285,8 @@ public enum AKRotaryKnobStyle {
 
         // Draw points
         let pointRadius = (knobDiameter / 2.0) + AKRotaryKnob.marginSize * 0.6
-        for index in 0...numberOfIndicatorPoints - 1 {
-            let pointPercent = Double(index) / Double(numberOfIndicatorPoints - 1)
+        for i in 0...numberOfIndicatorPoints - 1 {
+            let pointPercent = Double(i) / Double(numberOfIndicatorPoints - 1)
             let pointAngle = Double.pi * ( 0.75 + pointPercent * 1.5)
             let pointX = AKRotaryKnob.marginSize + knobDiameter / 2.0 + (pointRadius) * CGFloat(cos(pointAngle)) -
                 AKRotaryKnob.indicatorPointRadius
@@ -387,8 +375,8 @@ public enum AKRotaryKnobStyle {
 
         let path = UIBezierPath()
         path.move(to: startPoint)
-        for index in 0...numberOfSides {
-            let angle = 2 * Double.pi * index / numberOfSides + offsetAngle
+        for i in 0...numberOfSides {
+            let angle = 2 * Double.pi * i / numberOfSides + offsetAngle
             let nextX = rect.midX + rect.width / 2.0 * CGFloat(cos(angle))
             let nextY = rect.midY + rect.height / 2.0 * CGFloat(sin(angle))
             if curvature == 0.0 {
@@ -401,7 +389,7 @@ public enum AKRotaryKnobStyle {
                 if curvature < AKRotaryKnob.maximumPolygonCurvature * -1.0 {
                     actualCurvature = AKRotaryKnob.maximumPolygonCurvature * -1.0
                 }
-                let arcAngle = 2 * Double.pi * (index - 0.5) / numberOfSides + offsetAngle
+                let arcAngle = 2 * Double.pi * (i - 0.5) / numberOfSides + offsetAngle
                 let arcX = rect.midX + (rect.width * CGFloat(1 + actualCurvature * 0.5)) / 2 * CGFloat(cos(arcAngle))
                 let arcY = rect.midY + (rect.height * CGFloat(1 + actualCurvature * 0.5)) / 2 * CGFloat(sin(arcAngle))
                 path.addQuadCurve(to: CGPoint(x: nextX, y: nextY), controlPoint: CGPoint(x: arcX, y: arcY))

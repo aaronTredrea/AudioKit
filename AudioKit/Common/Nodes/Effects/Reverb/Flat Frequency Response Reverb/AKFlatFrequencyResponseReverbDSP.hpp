@@ -12,12 +12,12 @@
 
 typedef NS_ENUM(AUParameterAddress, AKFlatFrequencyResponseReverbParameter) {
     AKFlatFrequencyResponseReverbParameterReverbDuration,
-    AKFlatFrequencyResponseReverbParameterRampDuration
+    AKFlatFrequencyResponseReverbParameterRampTime
 };
 
 #ifndef __cplusplus
 
-AKDSPRef createFlatFrequencyResponseReverbDSP(int channelCount, double sampleRate);
+void* createFlatFrequencyResponseReverbDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -25,18 +25,19 @@ AKDSPRef createFlatFrequencyResponseReverbDSP(int channelCount, double sampleRat
 
 class AKFlatFrequencyResponseReverbDSP : public AKSoundpipeDSPBase {
 private:
-    struct InternalData;
-    std::unique_ptr<InternalData> data;
+    struct _Internal;
+    std::unique_ptr<_Internal> _private;
  
 public:
     AKFlatFrequencyResponseReverbDSP();
+    ~AKFlatFrequencyResponseReverbDSP();
 
     float reverbDurationLowerBound = 0;
     float reverbDurationUpperBound = 10;
 
     float defaultReverbDuration = 0.5;
 
-    int defaultRampDurationSamples = 10000;
+    int defaultRampTimeSamples = 10000;
 
     // Uses the ParameterAddress as a key
     void setParameter(AUParameterAddress address, float value, bool immediate) override;
@@ -44,11 +45,11 @@ public:
     // Uses the ParameterAddress as a key
     float getParameter(AUParameterAddress address) override;
     
-    void init(int channelCount, double sampleRate) override;
+    void init(int _channels, double _sampleRate) override;
 
     void initializeConstant(float duration) override;
 
-    void deinit() override;
+    void destroy();
 
     void process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) override;
 };

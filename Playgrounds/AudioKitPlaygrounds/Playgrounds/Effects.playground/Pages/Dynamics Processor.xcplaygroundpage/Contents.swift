@@ -8,16 +8,16 @@ import AudioKit
 
 let file = try AKAudioFile(readFileName: playgroundAudioFiles[0])
 
-let player = try AKAudioPlayer(file: file)
-player.looping = true
+let player = AKPlayer(audioFile: file)
+player.isLooping = true
 
 var effect = AKDynamicsProcessor(player)
 effect.threshold
 effect.headRoom
 effect.expansionRatio
 effect.expansionThreshold
-effect.attackDuration
-effect.releaseDuration
+effect.attackTime
+effect.releaseTime
 effect.masterGain
 
 AudioKit.output = effect
@@ -70,20 +70,20 @@ class LiveView: AKLiveViewController {
             effect.expansionThreshold = sliderValue
         })
 
-        addView(AKSlider(property: "Attack Duration",
-                         value: effect.attackDuration,
+        addView(AKSlider(property: "Attack Time",
+                         value: effect.attackTime,
                          range: 0.000_1 ... 0.2,
                          format: "%0.3f s"
         ) { sliderValue in
-            effect.attackDuration = sliderValue
+            effect.attackTime = sliderValue
         })
 
-        addView(AKSlider(property: "Release Duration",
-                         value: effect.releaseDuration,
+        addView(AKSlider(property: "Release Time",
+                         value: effect.releaseTime,
                          range: 0.01 ... 3,
                          format: "%0.3f s"
         ) { sliderValue in
-            effect.releaseDuration = sliderValue
+            effect.releaseTime = sliderValue
         })
 
         addView(AKSlider(property: "Master Gain",

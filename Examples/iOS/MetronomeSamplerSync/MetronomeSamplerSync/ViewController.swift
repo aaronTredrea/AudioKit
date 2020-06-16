@@ -3,7 +3,7 @@
 //  MetronomeSamplerSync
 //
 //  Created by David O'Neill, revision history on Githbub.
-//  Copyright © 2017 AudioKit. All rights reserved.
+//  Copyright © 2017 O'Neill. All rights reserved.
 //
 
 import UIKit
@@ -17,9 +17,6 @@ class ViewController: UIViewController {
     var metronome2 = AKSamplerMetronome()
     var mixer = AKMixer()
     var views = [UIView]()
-    var tapTempo = TapTempo(timeOut: 2.0, minimumTaps: 3)
-    let tempoSlider = AKSlider(property: "Tempo")
-
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -72,21 +69,10 @@ class ViewController: UIViewController {
                         let beatAtNow = otherMet.beatTime(at: now)
                         met.setBeatTime(beatAtNow, at: now)
                     } else {
-                        met.beatTime = 0
                         met.play()
                     }
                 }
                 button.title = met.isPlaying ? "Stop" : "Play"
-            }
-        }
-
-        func tapTempoAction(met: AKSamplerMetronome, otherMet: AKSamplerMetronome) -> (AKButton) -> Void {
-            return { [weak self] button in
-                guard let newTempo = self?.tapTempo.addTap() else { return }
-                let now = AVAudioTime(hostTime: mach_absolute_time())
-                otherMet.setTempo(newTempo, at: now)
-                met.setTempo(newTempo, at: now)
-                self?.tempoSlider.value = newTempo
             }
         }
 
@@ -96,26 +82,26 @@ class ViewController: UIViewController {
         addView(AKButton(title: "Play",
                          callback: startStopAction(met: metronome2, otherMet: metronome1)))
 
-        addView(tempoSlider)
-        tempoSlider.callback = { [weak self] tempo in
+        addView(AKSlider(property: "Tempo",
+                         value: metronome1.tempo,
+                         range: 30 ... 4_000,
+                         taper: 1,
+                         format: "%0.3f",
+                         color: .blue,
+                         frame: CGRect(),
+                         callback: { [weak self] tempo in
 
-            let now = AVAudioTime(hostTime: mach_absolute_time())
-            self?.metronome1.setTempo(tempo, at: now)
-            self?.metronome2.setTempo(tempo, at: now)
+                            let now = AVAudioTime(hostTime: mach_absolute_time())
+                            self?.metronome1.setTempo(tempo, at: now)
+                            self?.metronome2.setTempo(tempo, at: now)
 
-        }
-        tempoSlider.range = 30 ... 4_000
-        tempoSlider.taper = 1
-        tempoSlider.format = "%0.0f"
-        tempoSlider.color = .blue
-        tempoSlider.frame = CGRect()
-        tempoSlider.value = metronome1.tempo
+        }))
 
         addView(AKSlider(property: "Down Beat Volume",
-                         value: 1.0,
+                         value: metronome1.tempo,
                          range: 0...1,
                          taper: 1,
-                         format: "%0.1f",
+                         format: "%0.3f",
                          color: .blue,
                          frame: CGRect(),
                          callback: { [weak self] volume in
@@ -126,10 +112,10 @@ class ViewController: UIViewController {
         }))
 
         addView(AKSlider(property: "Beat Volume",
-                         value: 1.0,
+                         value: metronome1.tempo,
                          range: 0...1,
                          taper: 1,
-                         format: "%0.1f",
+                         format: "%0.3f",
                          color: .blue,
                          frame: CGRect(),
                          callback: { [weak self] volume in
@@ -139,13 +125,10 @@ class ViewController: UIViewController {
 
         }))
 
-        let beatsSelector = UISegmentedControl(items: Array(1...8).map { String($0) })
+        let beatsSelector = UISegmentedControl(items: Array(1...8).map {String($0)})
         beatsSelector.addTarget(self, action: #selector(beatsSelected(segmentedControl:)), for: .valueChanged)
         beatsSelector.selectedSegmentIndex = 3
         addView(beatsSelector)
-
-        addView(AKButton(title: "Tap Tempo (3x)",
-                         callback: tapTempoAction(met: metronome2, otherMet: metronome1)))
 
     }
     func addView(_ view: UIView) {
@@ -158,13 +141,13 @@ class ViewController: UIViewController {
         let elemHeight = CGFloat(80)
 
         var nextFrame = CGRect(x: inset,
-                               y: (view.frame.size.height - (elemHeight) * CGFloat(view.subviews.count)) / 2.0,
+                               y: (view.frame.size.height - (elemHeight + inset) * CGFloat(view.subviews.count)) / 2.0,
                                width: view.frame.size.width - inset * 2,
                                height: elemHeight)
 
         for view in views {
             view.frame = nextFrame
-            AKLog("frame " + String(describing: nextFrame.origin.y))
+            print("frame " + String(describing: nextFrame.origin.y))
             nextFrame = nextFrame.offsetBy(dx: 0, dy: nextFrame.size.height + inset)
         }
     }

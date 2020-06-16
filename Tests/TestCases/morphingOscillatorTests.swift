@@ -11,15 +11,15 @@ import XCTest
 
 class MorphingOscillatorTests: AKTestCase {
 
-    var oscillator = AKOperationGenerator { _ in return AKOperation.morphingOscillator() }
-
     override func setUp() {
-        afterStart = { self.oscillator.start() }
+        super.setUp()
         duration = 1.0
     }
 
     func testDefault() {
-        output = oscillator
+        output = AKOperationGenerator { _ in
+            return AKOperation.morphingOscillator()
+        }
         AKTestMD5("d45f894aa1d536e63bffc536dc7f4edf")
     }
 

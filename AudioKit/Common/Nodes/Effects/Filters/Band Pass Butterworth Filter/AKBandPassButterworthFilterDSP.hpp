@@ -13,12 +13,12 @@
 typedef NS_ENUM(AUParameterAddress, AKBandPassButterworthFilterParameter) {
     AKBandPassButterworthFilterParameterCenterFrequency,
     AKBandPassButterworthFilterParameterBandwidth,
-    AKBandPassButterworthFilterParameterRampDuration
+    AKBandPassButterworthFilterParameterRampTime
 };
 
 #ifndef __cplusplus
 
-AKDSPRef createBandPassButterworthFilterDSP(int channelCount, double sampleRate);
+void* createBandPassButterworthFilterDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -26,11 +26,12 @@ AKDSPRef createBandPassButterworthFilterDSP(int channelCount, double sampleRate)
 
 class AKBandPassButterworthFilterDSP : public AKSoundpipeDSPBase {
 private:
-    struct InternalData;
-    std::unique_ptr<InternalData> data;
+    struct _Internal;
+    std::unique_ptr<_Internal> _private;
  
 public:
     AKBandPassButterworthFilterDSP();
+    ~AKBandPassButterworthFilterDSP();
 
     float centerFrequencyLowerBound = 12.0;
     float centerFrequencyUpperBound = 20000.0;
@@ -40,7 +41,7 @@ public:
     float defaultCenterFrequency = 2000.0;
     float defaultBandwidth = 100.0;
 
-    int defaultRampDurationSamples = 10000;
+    int defaultRampTimeSamples = 10000;
 
     // Uses the ParameterAddress as a key
     void setParameter(AUParameterAddress address, float value, bool immediate) override;
@@ -48,9 +49,9 @@ public:
     // Uses the ParameterAddress as a key
     float getParameter(AUParameterAddress address) override;
     
-    void init(int channelCount, double sampleRate) override;
+    void init(int _channels, double _sampleRate) override;
 
-    void deinit() override;
+    void destroy();
 
     void process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) override;
 };

@@ -11,11 +11,11 @@ import AVFoundation
 public class AKTanhDistortionAudioUnit: AKAudioUnitBase {
 
     func setParameter(_ address: AKTanhDistortionParameter, value: Double) {
-        setParameterWithAddress(address.rawValue, value: Float(value))
+        setParameterWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     func setParameterImmediately(_ address: AKTanhDistortionParameter, value: Double) {
-        setParameterImmediatelyWithAddress(address.rawValue, value: Float(value))
+        setParameterImmediatelyWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     var pregain: Double = AKTanhDistortion.defaultPregain {
@@ -34,54 +34,77 @@ public class AKTanhDistortionAudioUnit: AKAudioUnitBase {
         didSet { setParameter(.negativeShapeParameter, value: negativeShapeParameter) }
     }
 
-    var rampDuration: Double = 0.0 {
-        didSet { setParameter(.rampDuration, value: rampDuration) }
+    var rampTime: Double = 0.0 {
+        didSet { setParameter(.rampTime, value: rampTime) }
     }
 
     public override func initDSP(withSampleRate sampleRate: Double,
-                                 channelCount count: AVAudioChannelCount) -> AKDSPRef {
+                                 channelCount count: AVAudioChannelCount) -> UnsafeMutableRawPointer! {
         return createTanhDistortionDSP(Int32(count), sampleRate)
     }
 
     public override init(componentDescription: AudioComponentDescription,
-                         options: AudioComponentInstantiationOptions = []) throws {
+                  options: AudioComponentInstantiationOptions = []) throws {
         try super.init(componentDescription: componentDescription, options: options)
-        let pregain = AUParameter(
-            identifier: "pregain",
-            name: "Pregain",
-            address: AKTanhDistortionParameter.pregain.rawValue,
-            range: AKTanhDistortion.pregainRange,
-            unit: .generic,
-            flags: .default)
-        let postgain = AUParameter(
-            identifier: "postgain",
-            name: "Postgain",
-            address: AKTanhDistortionParameter.postgain.rawValue,
-            range: AKTanhDistortion.postgainRange,
-            unit: .generic,
-            flags: .default)
-        let positiveShapeParameter = AUParameter(
-            identifier: "positiveShapeParameter",
-            name: "Positive Shape Parameter",
-            address: AKTanhDistortionParameter.positiveShapeParameter.rawValue,
-            range: AKTanhDistortion.positiveShapeParameterRange,
-            unit: .generic,
-            flags: .default)
-        let negativeShapeParameter = AUParameter(
-            identifier: "negativeShapeParameter",
-            name: "Negative Shape Parameter",
-            address: AKTanhDistortionParameter.negativeShapeParameter.rawValue,
-            range: AKTanhDistortion.negativeShapeParameterRange,
-            unit: .generic,
-            flags: .default)
 
-        setParameterTree(AUParameterTree(children: [pregain, postgain, positiveShapeParameter, negativeShapeParameter]))
+        let flags: AudioUnitParameterOptions = [.flag_IsReadable, .flag_IsWritable, .flag_CanRamp]
+
+        let pregain = AUParameterTree.createParameter(
+            withIdentifier: "pregain",
+            name: "Pregain",
+            address: AUParameterAddress(0),
+            min: Float(AKTanhDistortion.pregainRange.lowerBound),
+            max: Float(AKTanhDistortion.pregainRange.upperBound),
+            unit: .generic,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        let postgain = AUParameterTree.createParameter(
+            withIdentifier: "postgain",
+            name: "Postgain",
+            address: AUParameterAddress(1),
+            min: Float(AKTanhDistortion.postgainRange.lowerBound),
+            max: Float(AKTanhDistortion.postgainRange.upperBound),
+            unit: .generic,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        let positiveShapeParameter = AUParameterTree.createParameter(
+            withIdentifier: "positiveShapeParameter",
+            name: "Positive Shape Parameter",
+            address: AUParameterAddress(2),
+            min: Float(AKTanhDistortion.positiveShapeParameterRange.lowerBound),
+            max: Float(AKTanhDistortion.positiveShapeParameterRange.upperBound),
+            unit: .generic,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        let negativeShapeParameter = AUParameterTree.createParameter(
+            withIdentifier: "negativeShapeParameter",
+            name: "Negative Shape Parameter",
+            address: AUParameterAddress(3),
+            min: Float(AKTanhDistortion.negativeShapeParameterRange.lowerBound),
+            max: Float(AKTanhDistortion.negativeShapeParameterRange.upperBound),
+            unit: .generic,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+
+        setParameterTree(AUParameterTree.createTree(withChildren: [pregain, postgain, positiveShapeParameter, negativeShapeParameter]))
         pregain.value = Float(AKTanhDistortion.defaultPregain)
         postgain.value = Float(AKTanhDistortion.defaultPostgain)
         positiveShapeParameter.value = Float(AKTanhDistortion.defaultPositiveShapeParameter)
         negativeShapeParameter.value = Float(AKTanhDistortion.defaultNegativeShapeParameter)
     }
 
-    public override var canProcessInPlace: Bool { return true }
+    public override var canProcessInPlace: Bool { get { return true; }}
 
 }

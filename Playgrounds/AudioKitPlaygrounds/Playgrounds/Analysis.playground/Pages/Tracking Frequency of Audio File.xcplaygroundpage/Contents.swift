@@ -7,7 +7,6 @@ let file = try AKAudioFile(readFileName: "leadloop.wav")
 
 var player = AKPlayer(audioFile: file)
 player.isLooping = true
-player.buffering = .always
 
 let tracker = AKFrequencyTracker(player)
 
@@ -20,8 +19,8 @@ import AudioKitUI
 
 class LiveView: AKLiveViewController {
 
-    var trackedAmplitudeSlider: AKSlider!
-    var trackedFrequencySlider: AKSlider!
+    var trackedAmplitudeSlider: AKSlider?
+    var trackedFrequencySlider: AKSlider?
 
     override func viewDidLoad() {
 

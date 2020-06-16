@@ -16,14 +16,14 @@ typedef NS_ENUM(AUParameterAddress, AKPWMOscillatorParameter) {
     AKPWMOscillatorParameterPulseWidth,
     AKPWMOscillatorParameterDetuningOffset,
     AKPWMOscillatorParameterDetuningMultiplier,
-    AKPWMOscillatorParameterRampDuration
+    AKPWMOscillatorParameterRampTime
 };
 
 #import "AKLinearParameterRamp.hpp"  // have to put this here to get it included in umbrella header
 
 #ifndef __cplusplus
 
-AKDSPRef createPWMOscillatorDSP(int channelCount, double sampleRate);
+void* createPWMOscillatorDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -31,7 +31,7 @@ AKDSPRef createPWMOscillatorDSP(int channelCount, double sampleRate);
 
 class AKPWMOscillatorDSP : public AKSoundpipeDSPBase {
 
-    sp_blsquare *blsquare;
+    sp_blsquare *_blsquare;
 
 
 private:
@@ -55,7 +55,7 @@ public:
         detuningMultiplierRamp.setDurationInSamples(10000);
     }
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     void setParameter(AUParameterAddress address, float value, bool immediate) override {
         switch (address) {
             case AKPWMOscillatorParameterFrequency:
@@ -73,17 +73,17 @@ public:
             case AKPWMOscillatorParameterDetuningMultiplier:
                 detuningMultiplierRamp.setTarget(value, immediate);
                 break;
-            case AKPWMOscillatorParameterRampDuration:
-                frequencyRamp.setRampDuration(value, sampleRate);
-                amplitudeRamp.setRampDuration(value, sampleRate);
-                pulseWidthRamp.setRampDuration(value, sampleRate);
-                detuningOffsetRamp.setRampDuration(value, sampleRate);
-                detuningMultiplierRamp.setRampDuration(value, sampleRate);
+            case AKPWMOscillatorParameterRampTime:
+                frequencyRamp.setRampTime(value, _sampleRate);
+                amplitudeRamp.setRampTime(value, _sampleRate);
+                pulseWidthRamp.setRampTime(value, _sampleRate);
+                detuningOffsetRamp.setRampTime(value, _sampleRate);
+                detuningMultiplierRamp.setRampTime(value, _sampleRate);
                 break;
         }
     }
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     float getParameter(AUParameterAddress address) override {
         switch (address) {
             case AKPWMOscillatorParameterFrequency:
@@ -96,25 +96,25 @@ public:
                 return detuningOffsetRamp.getTarget();
             case AKPWMOscillatorParameterDetuningMultiplier:
                 return detuningMultiplierRamp.getTarget();
-            case AKPWMOscillatorParameterRampDuration:
-                return frequencyRamp.getRampDuration(sampleRate);
+            case AKPWMOscillatorParameterRampTime:
+                return frequencyRamp.getRampTime(_sampleRate);
         }
         return 0;
     }
 
-    void init(int channelCount, double sampleRate) override {
-        AKSoundpipeDSPBase::init(channelCount, sampleRate);
-        isStarted = false;
-        
-        sp_blsquare_create(&blsquare);
-        sp_blsquare_init(sp, blsquare);
-        *blsquare->freq = 440;
-        *blsquare->amp = 1.0;
-        *blsquare->width = 0.5;
+    void init(int _channels, double _sampleRate) override {
+        AKSoundpipeDSPBase::init(_channels, _sampleRate);
+
+        sp_blsquare_create(&_blsquare);
+        sp_blsquare_init(_sp, _blsquare);
+        *_blsquare->freq = 440;
+        *_blsquare->amp = 1.0;
+        *_blsquare->width = 0.5;
    }
 
-    void deinit() override {
-        sp_blsquare_destroy(&blsquare);
+    void destroy() {
+        sp_blsquare_destroy(&_blsquare);
+        AKSoundpipeDSPBase::destroy();
     }
 
     void process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) override {
@@ -124,28 +124,28 @@ public:
 
             // do ramping every 8 samples
             if ((frameOffset & 0x7) == 0) {
-                frequencyRamp.advanceTo(now + frameOffset);
-                amplitudeRamp.advanceTo(now + frameOffset);
-                pulseWidthRamp.advanceTo(now + frameOffset);
-                detuningOffsetRamp.advanceTo(now + frameOffset);
-                detuningMultiplierRamp.advanceTo(now + frameOffset);
+                frequencyRamp.advanceTo(_now + frameOffset);
+                amplitudeRamp.advanceTo(_now + frameOffset);
+                pulseWidthRamp.advanceTo(_now + frameOffset);
+                detuningOffsetRamp.advanceTo(_now + frameOffset);
+                detuningMultiplierRamp.advanceTo(_now + frameOffset);
             }
             float frequency = frequencyRamp.getValue();
             float amplitude = amplitudeRamp.getValue();
             float pulseWidth = pulseWidthRamp.getValue();
             float detuningOffset = detuningOffsetRamp.getValue();
             float detuningMultiplier = detuningMultiplierRamp.getValue();
-            *blsquare->freq = frequency * detuningMultiplier + detuningOffset;
-            *blsquare->amp = amplitude;
-            *blsquare->width = pulseWidth;
+            *_blsquare->freq = frequency * detuningMultiplier + detuningOffset;
+            *_blsquare->amp = amplitude;
+            *_blsquare->width = pulseWidth;
 
             float temp = 0;
-            for (int channel = 0; channel < channelCount; ++channel) {
-                float *out = (float *)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+            for (int channel = 0; channel < _nChannels; ++channel) {
+                float* out = (float *)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
 
-                if (isStarted) {
+                if (_playing) {
                     if (channel == 0) {
-                        sp_blsquare_compute(sp, blsquare, nil, &temp);
+                        sp_blsquare_compute(_sp, _blsquare, nil, &temp);
                     }
                     *out = temp;
                 } else {

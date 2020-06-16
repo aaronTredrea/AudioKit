@@ -11,15 +11,15 @@ import XCTest
 
 class SquareWaveTests: AKTestCase {
 
-    let square = AKOperationGenerator { _ in return AKOperation.squareWave() }
-
     override func setUp() {
-        afterStart = { self.square.start() }
+        super.setUp()
         duration = 1.0
     }
 
     func testDefault() {
-        output = square
+        output = AKOperationGenerator { _ in
+            return AKOperation.squareWave()
+        }
         AKTestMD5("8c93ddbc4ce8393a53d2a2c68ab45dca")
     }
 

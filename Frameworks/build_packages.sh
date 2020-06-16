@@ -4,16 +4,9 @@
 #
 set -o pipefail
 
+VERSION=$(cat ../VERSION)
 PLATFORMS=${PLATFORMS:-"iOS tvOS macOS"}
 SKIP_JAZZY=1 # Broken for now
-SUBDIR=${SUBDIR:-"packages"}
-STAGING_BRANCH="staging"
-VERSION=$(cat ../VERSION)
-
-if test "$TRAVIS_BRANCH" = "$STAGING_BRANCH";
-then
-	VERSION="${VERSION}.b1"
-fi
 
 if ! which gsed > /dev/null 2>&1;
 then
@@ -25,11 +18,6 @@ fi
 if ! test -d AudioKit-iOS;
 then
 	./build_frameworks.sh
-fi
-
-if ! test -d "$SUBDIR";
-then
-	mkdir "$SUBDIR"
 fi
 
 # Generate documentation to include in the zip files
@@ -49,14 +37,13 @@ create_package()
 	echo "Packaging AudioKit version $VERSION for $1 ..."
 	DIR="AudioKit-$1"
 	rm -f ${DIR}-${VERSION}.zip
-	mkdir -p "Carthage/$1"
+	mkdir -p "Carthage/$os"
+	cp -a "$DIR/AudioKit.framework" "$DIR/AudioKitUI.framework" "Carthage/$os/"
 	cd $DIR
-	tar cf - $(find . -name AudioKit\*.framework) | tar xf - -C "../Carthage/$1/"
-	test "$TRAVIS_BRANCH" = "$STAGING_BRANCH" && cd .. && return # Do not bundle any examples for staging, just the frameworks
 	mkdir -p Examples
-	cp -a ../../Examples/$1*/* ../../Examples/Common Examples/
+	cp -a ../../Examples/$1/* Examples/
 	# Exceptions of any example projects to skip
-	rm -rf Examples/SongProcessor Examples/Drums
+	rm -rf Examples/SongProcessor
 	find Examples -name project.pbxproj -exec gsed -i -f ../fix_paths.sed {} \;
 	find -d Examples -name Pods -exec rm -rf {} \;
 	find Examples -name Podfile.lock -exec rm -rf {} \;
@@ -66,7 +53,7 @@ create_package()
 	find -d . -name build -exec rm -rf {} \;
 	find -d . -name xcuserdata -exec rm -rf {} \;
 	cd ..
-	zip -9yr ${SUBDIR}/${DIR}-${VERSION}.zip $DIR
+	zip -9yr ${DIR}-${VERSION}.zip $DIR
 }
 
 create_playgrounds()
@@ -81,31 +68,23 @@ create_playgrounds()
 	find . -name .DS_Store -exec rm -rf {} \;
 	find . -name build -or -name xcuserdata -exec rm -rf {} \;
 	cd ..
-        zip -9yr ${SUBDIR}/AudioKitPlaygrounds-${VERSION}.zip AudioKitPlaygrounds
+        zip -9yr AudioKitPlaygrounds-${VERSION}.zip AudioKitPlaygrounds
 }
 
 rm -rf Carthage
-mkdir -p Carthage
 
 for os in $PLATFORMS;
 do
 	create_package $os
 done
 
-# Only package Playgrounds if they are part of this repo
-test "$TRAVIS_BRANCH" != "$STAGING_BRANCH" && test -d ../Playgrounds && create_playgrounds
+create_playgrounds
 
-# Create binary framework zip for Carthage/CocoaPods, to be uploaded to S3 or GitHub along with release
+# Create binary framework zip for Carthage, to be uploaded to Github along with release
 
-echo "Packaging AudioKit frameworks version $VERSION for CocoaPods and Carthage ..."
-rm -f ${SUBDIR}/AudioKit.framework.zip
+echo "Packaging AudioKit frameworks version $VERSION for Carthage ..."
+rm -f AudioKit.framework.zip
 cd Carthage
 cp ../../LICENSE ../../README.md .
-zip -9yr ../${SUBDIR}/AudioKit.framework.zip $PLATFORMS LICENSE README.md
-cd ..
+zip -9yr ../AudioKit.framework.zip $PLATFORMS LICENSE README.md
 
-if test -d AudioKit.xcframework && test -d AudioKitUI.xcframework; then
-	echo "Packaging the XCFrameworks ..."
-	rm -f ${SUBDIR}/AudioKit.xcframework.zip
-	zip -9yr ${SUBDIR}/AudioKit.xcframework.zip AudioKit.xcframework AudioKitUI.xcframework
-fi

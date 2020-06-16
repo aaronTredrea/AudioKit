@@ -15,30 +15,37 @@ open class AKRhodesPiano: AKNode, AKToggleable, AKComponent {
     // MARK: - Properties
 
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var frequencyParameter: AUParameter?
     fileprivate var amplitudeParameter: AUParameter?
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Variable frequency. Values less than the initial frequency will be doubled until it is greater than that.
     @objc open dynamic var frequency: Double = 110 {
         willSet {
-            guard frequency != newValue else { return }
-            frequencyParameter?.value = AUValue(newValue)
+            if frequency != newValue {
+                if let existingToken = token {
+                    frequencyParameter?.setValue(Float(newValue), originator: existingToken)
+                }
+            }
         }
     }
 
     /// Amplitude
     @objc open dynamic var amplitude: Double = 0.5 {
         willSet {
-            guard amplitude != newValue else { return }
-            amplitudeParameter?.value = AUValue(newValue)
+            if amplitude != newValue {
+                if let existingToken = token {
+                    amplitudeParameter?.setValue(Float(newValue), originator: existingToken)
+                }
+            }
         }
     }
 
@@ -73,7 +80,6 @@ open class AKRhodesPiano: AKNode, AKToggleable, AKComponent {
         super.init()
         AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self] avAudioUnit in
 
-            self?.avAudioUnit = avAudioUnit
             self?.avAudioNode = avAudioUnit
             self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
         }
@@ -85,8 +91,20 @@ open class AKRhodesPiano: AKNode, AKToggleable, AKComponent {
 
         frequencyParameter = tree["frequency"]
         amplitudeParameter = tree["amplitude"]
-        internalAU?.frequency = frequency
-        internalAU?.amplitude = amplitude
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
+        internalAU?.frequency = Float(frequency)
+        internalAU?.amplitude = Float(amplitude)
     }
 
     /// Trigger the sound with an optional set of parameters

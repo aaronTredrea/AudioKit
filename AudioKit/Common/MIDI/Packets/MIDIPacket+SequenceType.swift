@@ -5,7 +5,6 @@
 //  Created by Aurelius Prochazka, revision history on Github.
 //  Copyright © 2018 AudioKit. All rights reserved.
 //
-import CoreMIDI
 
 /**
  Allows a MIDIPacket to be iterated through with a for statement.
@@ -31,49 +30,59 @@ extension MIDIPacket: Sequence {
             }
 
             func pop() -> MIDIByte {
-                assert((index < self.length) || (index <= self.length && self.data.0 != AKMIDISystemCommand.sysex.byte))
+                assert(index < self.length)
                 index += 1
-                return generator.next() as! MIDIByte
+                guard let byte = generator.next() as? MIDIByte else {
+                    return 0 // Is this right?
+                }
+                return byte
             }
             let status = pop()
-            if AudioKit.midi.isReceivingSysex {
-                return AKMIDIEvent.appendIncomingSysex(packet: self) //will be nil until sysex is done
-            } else if var mstat = AKMIDIStatusType.from(byte: status) {
+            if AKMIDIEvent.isStatusByte(status) {
                 var data1: MIDIByte = 0
                 var data2: MIDIByte = 0
+                var mstat = AKMIDIEvent.statusFromValue(status)
+
+                let chan = status & 0xF
 
                 switch  mstat {
 
                 case .noteOff, .noteOn, .polyphonicAftertouch, .controllerChange, .pitchWheel:
                     data1 = pop(); data2 = pop()
+
                     if mstat == .noteOn && data2 == 0 {
                         // turn noteOn with velocity 0 to noteOff
                         mstat = .noteOff
                     }
-                    return AKMIDIEvent(data: [status, data1, data2])
+                    return AKMIDIEvent(status: mstat, channel: chan, byte1: data1, byte2: data2)
 
                 case .programChange, .channelAftertouch:
                     data1 = pop()
-                    return AKMIDIEvent(data: [status, data1])
-                }
-            } else if let command = AKMIDISystemCommand(rawValue: status) {
-                var data1: MIDIByte = 0
-                var data2: MIDIByte = 0
-                switch command {
-                case .sysex:
-                    index = self.length
-                    return AKMIDIEvent(packet: self)
-                case .songPosition:
-                    //the remaining event generators need to be tested and tweaked to the specific messages
-                    data1 = pop()
-                    data2 = pop()
-                    return AKMIDIEvent(data: [status, data1, data2])
-                case .timeCodeQuarterFrame:
-                    data1 = pop()
-                    return AKMIDIEvent(data: [status, data1])
-                case .songSelect:
-                    data1 = pop()
-                    return AKMIDIEvent(data: [status, data1])
+                    return AKMIDIEvent(status: mstat, channel: chan, byte1: data1, byte2: data2)
+
+                case .systemCommand:
+                    guard let cmd = AKMIDISystemCommand(rawValue: status) else {
+                        return AKMIDIEvent(packet: self)
+                    }
+                    switch  cmd {
+                    case .sysex:
+                        // sysex - guaranteed by Core MIDI to be the entire packet
+                        index = self.length
+                        return AKMIDIEvent(packet: self)
+                    case .songPosition:
+                        //the remaining event generators need to be tested and tweaked to the specific messages
+                        data1 = pop()
+                        data2 = pop()
+
+                        return AKMIDIEvent(command: cmd, byte1: data1, byte2: data2)
+                    case .songSelect:
+                        data1 = pop()
+
+                        return AKMIDIEvent(command: cmd, byte1: data1, byte2: data2)
+                    default:
+                        return AKMIDIEvent(packet: self)
+                    }
+
                 default:
                     return AKMIDIEvent(packet: self)
                 }
@@ -84,6 +93,7 @@ extension MIDIPacket: Sequence {
     }
 }
 
+/// Temporary hack for Xcode 7.3.1 - Appreciate improvements to this if you want to make a go of it!
 typealias AKRawMIDIPacket = (
     MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte,
     MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte, MIDIByte,

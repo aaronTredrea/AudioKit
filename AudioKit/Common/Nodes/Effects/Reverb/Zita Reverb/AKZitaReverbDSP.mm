@@ -9,14 +9,14 @@
 #include "AKZitaReverbDSP.hpp"
 #import "AKLinearParameterRamp.hpp"
 
-extern "C" AKDSPRef createZitaReverbDSP(int channelCount, double sampleRate) {
-    AKZitaReverbDSP *dsp = new AKZitaReverbDSP();
-    dsp->init(channelCount, sampleRate);
+extern "C" void* createZitaReverbDSP(int nChannels, double sampleRate) {
+    AKZitaReverbDSP* dsp = new AKZitaReverbDSP();
+    dsp->init(nChannels, sampleRate);
     return dsp;
 }
 
-struct AKZitaReverbDSP::InternalData {
-    sp_zitarev *zitarev;
+struct AKZitaReverbDSP::_Internal {
+    sp_zitarev *_zitarev;
     AKLinearParameterRamp predelayRamp;
     AKLinearParameterRamp crossoverFrequencyRamp;
     AKLinearParameterRamp lowReleaseTimeRamp;
@@ -29,73 +29,73 @@ struct AKZitaReverbDSP::InternalData {
     AKLinearParameterRamp dryWetMixRamp;
 };
 
-AKZitaReverbDSP::AKZitaReverbDSP() : data(new InternalData) {
-    data->predelayRamp.setTarget(defaultPredelay, true);
-    data->predelayRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->crossoverFrequencyRamp.setTarget(defaultCrossoverFrequency, true);
-    data->crossoverFrequencyRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->lowReleaseTimeRamp.setTarget(defaultLowReleaseTime, true);
-    data->lowReleaseTimeRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->midReleaseTimeRamp.setTarget(defaultMidReleaseTime, true);
-    data->midReleaseTimeRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->dampingFrequencyRamp.setTarget(defaultDampingFrequency, true);
-    data->dampingFrequencyRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->equalizerFrequency1Ramp.setTarget(defaultEqualizerFrequency1, true);
-    data->equalizerFrequency1Ramp.setDurationInSamples(defaultRampDurationSamples);
-    data->equalizerLevel1Ramp.setTarget(defaultEqualizerLevel1, true);
-    data->equalizerLevel1Ramp.setDurationInSamples(defaultRampDurationSamples);
-    data->equalizerFrequency2Ramp.setTarget(defaultEqualizerFrequency2, true);
-    data->equalizerFrequency2Ramp.setDurationInSamples(defaultRampDurationSamples);
-    data->equalizerLevel2Ramp.setTarget(defaultEqualizerLevel2, true);
-    data->equalizerLevel2Ramp.setDurationInSamples(defaultRampDurationSamples);
-    data->dryWetMixRamp.setTarget(defaultDryWetMix, true);
-    data->dryWetMixRamp.setDurationInSamples(defaultRampDurationSamples);
+AKZitaReverbDSP::AKZitaReverbDSP() : _private(new _Internal) {
+    _private->predelayRamp.setTarget(defaultPredelay, true);
+    _private->predelayRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->crossoverFrequencyRamp.setTarget(defaultCrossoverFrequency, true);
+    _private->crossoverFrequencyRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->lowReleaseTimeRamp.setTarget(defaultLowReleaseTime, true);
+    _private->lowReleaseTimeRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->midReleaseTimeRamp.setTarget(defaultMidReleaseTime, true);
+    _private->midReleaseTimeRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->dampingFrequencyRamp.setTarget(defaultDampingFrequency, true);
+    _private->dampingFrequencyRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->equalizerFrequency1Ramp.setTarget(defaultEqualizerFrequency1, true);
+    _private->equalizerFrequency1Ramp.setDurationInSamples(defaultRampTimeSamples);
+    _private->equalizerLevel1Ramp.setTarget(defaultEqualizerLevel1, true);
+    _private->equalizerLevel1Ramp.setDurationInSamples(defaultRampTimeSamples);
+    _private->equalizerFrequency2Ramp.setTarget(defaultEqualizerFrequency2, true);
+    _private->equalizerFrequency2Ramp.setDurationInSamples(defaultRampTimeSamples);
+    _private->equalizerLevel2Ramp.setTarget(defaultEqualizerLevel2, true);
+    _private->equalizerLevel2Ramp.setDurationInSamples(defaultRampTimeSamples);
+    _private->dryWetMixRamp.setTarget(defaultDryWetMix, true);
+    _private->dryWetMixRamp.setDurationInSamples(defaultRampTimeSamples);
 }
 
 // Uses the ParameterAddress as a key
 void AKZitaReverbDSP::setParameter(AUParameterAddress address, AUValue value, bool immediate) {
     switch (address) {
         case AKZitaReverbParameterPredelay:
-            data->predelayRamp.setTarget(clamp(value, predelayLowerBound, predelayUpperBound), immediate);
+            _private->predelayRamp.setTarget(clamp(value, predelayLowerBound, predelayUpperBound), immediate);
             break;
         case AKZitaReverbParameterCrossoverFrequency:
-            data->crossoverFrequencyRamp.setTarget(clamp(value, crossoverFrequencyLowerBound, crossoverFrequencyUpperBound), immediate);
+            _private->crossoverFrequencyRamp.setTarget(clamp(value, crossoverFrequencyLowerBound, crossoverFrequencyUpperBound), immediate);
             break;
         case AKZitaReverbParameterLowReleaseTime:
-            data->lowReleaseTimeRamp.setTarget(clamp(value, lowReleaseTimeLowerBound, lowReleaseTimeUpperBound), immediate);
+            _private->lowReleaseTimeRamp.setTarget(clamp(value, lowReleaseTimeLowerBound, lowReleaseTimeUpperBound), immediate);
             break;
         case AKZitaReverbParameterMidReleaseTime:
-            data->midReleaseTimeRamp.setTarget(clamp(value, midReleaseTimeLowerBound, midReleaseTimeUpperBound), immediate);
+            _private->midReleaseTimeRamp.setTarget(clamp(value, midReleaseTimeLowerBound, midReleaseTimeUpperBound), immediate);
             break;
         case AKZitaReverbParameterDampingFrequency:
-            data->dampingFrequencyRamp.setTarget(clamp(value, dampingFrequencyLowerBound, dampingFrequencyUpperBound), immediate);
+            _private->dampingFrequencyRamp.setTarget(clamp(value, dampingFrequencyLowerBound, dampingFrequencyUpperBound), immediate);
             break;
         case AKZitaReverbParameterEqualizerFrequency1:
-            data->equalizerFrequency1Ramp.setTarget(clamp(value, equalizerFrequency1LowerBound, equalizerFrequency1UpperBound), immediate);
+            _private->equalizerFrequency1Ramp.setTarget(clamp(value, equalizerFrequency1LowerBound, equalizerFrequency1UpperBound), immediate);
             break;
         case AKZitaReverbParameterEqualizerLevel1:
-            data->equalizerLevel1Ramp.setTarget(clamp(value, equalizerLevel1LowerBound, equalizerLevel1UpperBound), immediate);
+            _private->equalizerLevel1Ramp.setTarget(clamp(value, equalizerLevel1LowerBound, equalizerLevel1UpperBound), immediate);
             break;
         case AKZitaReverbParameterEqualizerFrequency2:
-            data->equalizerFrequency2Ramp.setTarget(clamp(value, equalizerFrequency2LowerBound, equalizerFrequency2UpperBound), immediate);
+            _private->equalizerFrequency2Ramp.setTarget(clamp(value, equalizerFrequency2LowerBound, equalizerFrequency2UpperBound), immediate);
             break;
         case AKZitaReverbParameterEqualizerLevel2:
-            data->equalizerLevel2Ramp.setTarget(clamp(value, equalizerLevel2LowerBound, equalizerLevel2UpperBound), immediate);
+            _private->equalizerLevel2Ramp.setTarget(clamp(value, equalizerLevel2LowerBound, equalizerLevel2UpperBound), immediate);
             break;
         case AKZitaReverbParameterDryWetMix:
-            data->dryWetMixRamp.setTarget(clamp(value, dryWetMixLowerBound, dryWetMixUpperBound), immediate);
+            _private->dryWetMixRamp.setTarget(clamp(value, dryWetMixLowerBound, dryWetMixUpperBound), immediate);
             break;
-        case AKZitaReverbParameterRampDuration:
-            data->predelayRamp.setRampDuration(value, sampleRate);
-            data->crossoverFrequencyRamp.setRampDuration(value, sampleRate);
-            data->lowReleaseTimeRamp.setRampDuration(value, sampleRate);
-            data->midReleaseTimeRamp.setRampDuration(value, sampleRate);
-            data->dampingFrequencyRamp.setRampDuration(value, sampleRate);
-            data->equalizerFrequency1Ramp.setRampDuration(value, sampleRate);
-            data->equalizerLevel1Ramp.setRampDuration(value, sampleRate);
-            data->equalizerFrequency2Ramp.setRampDuration(value, sampleRate);
-            data->equalizerLevel2Ramp.setRampDuration(value, sampleRate);
-            data->dryWetMixRamp.setRampDuration(value, sampleRate);
+        case AKZitaReverbParameterRampTime:
+            _private->predelayRamp.setRampTime(value, _sampleRate);
+            _private->crossoverFrequencyRamp.setRampTime(value, _sampleRate);
+            _private->lowReleaseTimeRamp.setRampTime(value, _sampleRate);
+            _private->midReleaseTimeRamp.setRampTime(value, _sampleRate);
+            _private->dampingFrequencyRamp.setRampTime(value, _sampleRate);
+            _private->equalizerFrequency1Ramp.setRampTime(value, _sampleRate);
+            _private->equalizerLevel1Ramp.setRampTime(value, _sampleRate);
+            _private->equalizerFrequency2Ramp.setRampTime(value, _sampleRate);
+            _private->equalizerLevel2Ramp.setRampTime(value, _sampleRate);
+            _private->dryWetMixRamp.setRampTime(value, _sampleRate);
             break;
     }
 }
@@ -104,49 +104,50 @@ void AKZitaReverbDSP::setParameter(AUParameterAddress address, AUValue value, bo
 float AKZitaReverbDSP::getParameter(uint64_t address) {
     switch (address) {
         case AKZitaReverbParameterPredelay:
-            return data->predelayRamp.getTarget();
+            return _private->predelayRamp.getTarget();
         case AKZitaReverbParameterCrossoverFrequency:
-            return data->crossoverFrequencyRamp.getTarget();
+            return _private->crossoverFrequencyRamp.getTarget();
         case AKZitaReverbParameterLowReleaseTime:
-            return data->lowReleaseTimeRamp.getTarget();
+            return _private->lowReleaseTimeRamp.getTarget();
         case AKZitaReverbParameterMidReleaseTime:
-            return data->midReleaseTimeRamp.getTarget();
+            return _private->midReleaseTimeRamp.getTarget();
         case AKZitaReverbParameterDampingFrequency:
-            return data->dampingFrequencyRamp.getTarget();
+            return _private->dampingFrequencyRamp.getTarget();
         case AKZitaReverbParameterEqualizerFrequency1:
-            return data->equalizerFrequency1Ramp.getTarget();
+            return _private->equalizerFrequency1Ramp.getTarget();
         case AKZitaReverbParameterEqualizerLevel1:
-            return data->equalizerLevel1Ramp.getTarget();
+            return _private->equalizerLevel1Ramp.getTarget();
         case AKZitaReverbParameterEqualizerFrequency2:
-            return data->equalizerFrequency2Ramp.getTarget();
+            return _private->equalizerFrequency2Ramp.getTarget();
         case AKZitaReverbParameterEqualizerLevel2:
-            return data->equalizerLevel2Ramp.getTarget();
+            return _private->equalizerLevel2Ramp.getTarget();
         case AKZitaReverbParameterDryWetMix:
-            return data->dryWetMixRamp.getTarget();
-        case AKZitaReverbParameterRampDuration:
-            return data->predelayRamp.getRampDuration(sampleRate);
+            return _private->dryWetMixRamp.getTarget();
+        case AKZitaReverbParameterRampTime:
+            return _private->predelayRamp.getRampTime(_sampleRate);
     }
     return 0;
 }
 
-void AKZitaReverbDSP::init(int channelCount, double sampleRate) {
-    AKSoundpipeDSPBase::init(channelCount, sampleRate);
-    sp_zitarev_create(&data->zitarev);
-    sp_zitarev_init(sp, data->zitarev);
-    *data->zitarev->in_delay = defaultPredelay;
-    *data->zitarev->lf_x = defaultCrossoverFrequency;
-    *data->zitarev->rt60_low = defaultLowReleaseTime;
-    *data->zitarev->rt60_mid = defaultMidReleaseTime;
-    *data->zitarev->hf_damping = defaultDampingFrequency;
-    *data->zitarev->eq1_freq = defaultEqualizerFrequency1;
-    *data->zitarev->eq1_level = defaultEqualizerLevel1;
-    *data->zitarev->eq2_freq = defaultEqualizerFrequency2;
-    *data->zitarev->eq2_level = defaultEqualizerLevel2;
-    *data->zitarev->mix = defaultDryWetMix;
+void AKZitaReverbDSP::init(int _channels, double _sampleRate) {
+    AKSoundpipeDSPBase::init(_channels, _sampleRate);
+    sp_zitarev_create(&_private->_zitarev);
+    sp_zitarev_init(_sp, _private->_zitarev);
+    *_private->_zitarev->in_delay = defaultPredelay;
+    *_private->_zitarev->lf_x = defaultCrossoverFrequency;
+    *_private->_zitarev->rt60_low = defaultLowReleaseTime;
+    *_private->_zitarev->rt60_mid = defaultMidReleaseTime;
+    *_private->_zitarev->hf_damping = defaultDampingFrequency;
+    *_private->_zitarev->eq1_freq = defaultEqualizerFrequency1;
+    *_private->_zitarev->eq1_level = defaultEqualizerLevel1;
+    *_private->_zitarev->eq2_freq = defaultEqualizerFrequency2;
+    *_private->_zitarev->eq2_level = defaultEqualizerLevel2;
+    *_private->_zitarev->mix = defaultDryWetMix;
 }
 
-void AKZitaReverbDSP::deinit() {
-    sp_zitarev_destroy(&data->zitarev);
+void AKZitaReverbDSP::destroy() {
+    sp_zitarev_destroy(&_private->_zitarev);
+    AKSoundpipeDSPBase::destroy();
 }
 
 void AKZitaReverbDSP::process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) {
@@ -156,45 +157,45 @@ void AKZitaReverbDSP::process(AUAudioFrameCount frameCount, AUAudioFrameCount bu
 
         // do ramping every 8 samples
         if ((frameOffset & 0x7) == 0) {
-            data->predelayRamp.advanceTo(now + frameOffset);
-            data->crossoverFrequencyRamp.advanceTo(now + frameOffset);
-            data->lowReleaseTimeRamp.advanceTo(now + frameOffset);
-            data->midReleaseTimeRamp.advanceTo(now + frameOffset);
-            data->dampingFrequencyRamp.advanceTo(now + frameOffset);
-            data->equalizerFrequency1Ramp.advanceTo(now + frameOffset);
-            data->equalizerLevel1Ramp.advanceTo(now + frameOffset);
-            data->equalizerFrequency2Ramp.advanceTo(now + frameOffset);
-            data->equalizerLevel2Ramp.advanceTo(now + frameOffset);
-            data->dryWetMixRamp.advanceTo(now + frameOffset);
+            _private->predelayRamp.advanceTo(_now + frameOffset);
+            _private->crossoverFrequencyRamp.advanceTo(_now + frameOffset);
+            _private->lowReleaseTimeRamp.advanceTo(_now + frameOffset);
+            _private->midReleaseTimeRamp.advanceTo(_now + frameOffset);
+            _private->dampingFrequencyRamp.advanceTo(_now + frameOffset);
+            _private->equalizerFrequency1Ramp.advanceTo(_now + frameOffset);
+            _private->equalizerLevel1Ramp.advanceTo(_now + frameOffset);
+            _private->equalizerFrequency2Ramp.advanceTo(_now + frameOffset);
+            _private->equalizerLevel2Ramp.advanceTo(_now + frameOffset);
+            _private->dryWetMixRamp.advanceTo(_now + frameOffset);
         }
 
-        *data->zitarev->in_delay = data->predelayRamp.getValue();
-        *data->zitarev->lf_x = data->crossoverFrequencyRamp.getValue();
-        *data->zitarev->rt60_low = data->lowReleaseTimeRamp.getValue();
-        *data->zitarev->rt60_mid = data->midReleaseTimeRamp.getValue();
-        *data->zitarev->hf_damping = data->dampingFrequencyRamp.getValue();
-        *data->zitarev->eq1_freq = data->equalizerFrequency1Ramp.getValue();
-        *data->zitarev->eq1_level = data->equalizerLevel1Ramp.getValue();
-        *data->zitarev->eq2_freq = data->equalizerFrequency2Ramp.getValue();
-        *data->zitarev->eq2_level = data->equalizerLevel2Ramp.getValue();
-        *data->zitarev->mix = data->dryWetMixRamp.getValue();
+        *_private->_zitarev->in_delay = _private->predelayRamp.getValue();
+        *_private->_zitarev->lf_x = _private->crossoverFrequencyRamp.getValue();
+        *_private->_zitarev->rt60_low = _private->lowReleaseTimeRamp.getValue();
+        *_private->_zitarev->rt60_mid = _private->midReleaseTimeRamp.getValue();
+        *_private->_zitarev->hf_damping = _private->dampingFrequencyRamp.getValue();
+        *_private->_zitarev->eq1_freq = _private->equalizerFrequency1Ramp.getValue();
+        *_private->_zitarev->eq1_level = _private->equalizerLevel1Ramp.getValue();
+        *_private->_zitarev->eq2_freq = _private->equalizerFrequency2Ramp.getValue();
+        *_private->_zitarev->eq2_level = _private->equalizerLevel2Ramp.getValue();
+        *_private->_zitarev->mix = _private->dryWetMixRamp.getValue();
 
         float *tmpin[2];
         float *tmpout[2];
-        for (int channel = 0; channel < channelCount; ++channel) {
-            float *in  = (float *)inBufferListPtr->mBuffers[channel].mData  + frameOffset;
-            float *out = (float *)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+        for (int channel = 0; channel < _nChannels; ++channel) {
+            float* in  = (float *)_inBufferListPtr->mBuffers[channel].mData  + frameOffset;
+            float* out = (float *)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
             if (channel < 2) {
                 tmpin[channel] = in;
                 tmpout[channel] = out;
             }
-            if (!isStarted) {
+            if (!_playing) {
                 *out = *in;
             }
-
+            
         }
-        if (isStarted) {
-            sp_zitarev_compute(sp, data->zitarev, tmpin[0], tmpin[1], tmpout[0], tmpout[1]);
+        if (_playing) {
+            sp_zitarev_compute(_sp, _private->_zitarev, tmpin[0], tmpin[1], tmpout[0], tmpout[1]);
         }
     }
 }

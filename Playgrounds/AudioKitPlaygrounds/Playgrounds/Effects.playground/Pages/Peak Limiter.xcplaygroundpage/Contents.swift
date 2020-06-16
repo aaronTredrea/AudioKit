@@ -7,12 +7,12 @@ import AudioKit
 
 let file = try AKAudioFile(readFileName: playgroundAudioFiles[0])
 
-let player = try AKAudioPlayer(file: file)
-player.looping = true
+let player = AKPlayer(audioFile: file)
+player.isLooping = true
 
 var peakLimiter = AKPeakLimiter(player)
-peakLimiter.attackDuration = 0.001 // Secs
-peakLimiter.decayDuration = 0.01 // Secs
+peakLimiter.attackTime = 0.001 // Secs
+peakLimiter.decayTime = 0.01 // Secs
 peakLimiter.preGain = 10 // dB
 
 AudioKit.output = peakLimiter
@@ -35,26 +35,26 @@ class LiveView: AKLiveViewController {
             button.title = node.isStarted ? "Stop Limiter" : "Start Limiter"
         })
 
-        addView(AKSlider(property: "Attack Duration",
-                         value: peakLimiter.attackDuration,
+        addView(AKSlider(property: "Attack Time",
+                         value: peakLimiter.attackTime,
                          range: 0.001 ... 0.03,
-                         format: "%0.3f s"
+                         format:  "%0.3f s"
         ) { sliderValue in
-            peakLimiter.attackDuration = sliderValue
+            peakLimiter.attackTime = sliderValue
         })
 
-        addView(AKSlider(property: "Decay Duration",
-                         value: peakLimiter.decayDuration,
+        addView(AKSlider(property: "Decay Time",
+                         value: peakLimiter.decayTime,
                          range: 0.001 ... 0.03,
-                         format: "%0.3f s"
+                         format:  "%0.3f s"
         ) { sliderValue in
-            peakLimiter.decayDuration = sliderValue
+            peakLimiter.decayTime = sliderValue
         })
 
         addView(AKSlider(property: "Pre-gain",
                          value: peakLimiter.preGain,
                          range: -40 ... 40,
-                         format: "%0.1f dB"
+                         format:  "%0.1f dB"
         ) { sliderValue in
             peakLimiter.preGain = sliderValue
         })

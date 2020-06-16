@@ -11,11 +11,11 @@ import AVFoundation
 public class AKDynamicRangeCompressorAudioUnit: AKAudioUnitBase {
 
     func setParameter(_ address: AKDynamicRangeCompressorParameter, value: Double) {
-        setParameterWithAddress(address.rawValue, value: Float(value))
+        setParameterWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     func setParameterImmediately(_ address: AKDynamicRangeCompressorParameter, value: Double) {
-        setParameterImmediatelyWithAddress(address.rawValue, value: Float(value))
+        setParameterImmediatelyWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     var ratio: Double = AKDynamicRangeCompressor.defaultRatio {
@@ -26,67 +26,85 @@ public class AKDynamicRangeCompressorAudioUnit: AKAudioUnitBase {
         didSet { setParameter(.threshold, value: threshold) }
     }
 
-    var attackDuration: Double = AKDynamicRangeCompressor.defaultAttackDuration {
-        didSet { setParameter(.attackDuration, value: attackDuration) }
+    var attackTime: Double = AKDynamicRangeCompressor.defaultAttackTime {
+        didSet { setParameter(.attackTime, value: attackTime) }
     }
 
-    var releaseDuration: Double = AKDynamicRangeCompressor.defaultReleaseDuration {
-        didSet { setParameter(.releaseDuration, value: releaseDuration) }
+    var releaseTime: Double = AKDynamicRangeCompressor.defaultReleaseTime {
+        didSet { setParameter(.releaseTime, value: releaseTime) }
     }
 
-    var rampDuration: Double = 0.0 {
-        didSet { setParameter(.rampDuration, value: rampDuration) }
-    }
-
-    var compressionAmount: Float {
-        get { parameter(withAddress: AKDynamicRangeCompressorParameter.compressionAmount.rawValue) }
+    var rampTime: Double = 0.0 {
+        didSet { setParameter(.rampTime, value: rampTime) }
     }
 
     public override func initDSP(withSampleRate sampleRate: Double,
-                                 channelCount count: AVAudioChannelCount) -> AKDSPRef {
+                                 channelCount count: AVAudioChannelCount) -> UnsafeMutableRawPointer! {
         return createDynamicRangeCompressorDSP(Int32(count), sampleRate)
     }
 
     public override init(componentDescription: AudioComponentDescription,
-                         options: AudioComponentInstantiationOptions = []) throws {
+                  options: AudioComponentInstantiationOptions = []) throws {
         try super.init(componentDescription: componentDescription, options: options)
 
-        let ratio = AUParameter(
-            identifier: "ratio",
-            name: "Ratio to compress with, a value > 1 will compress",
-            address: AKDynamicRangeCompressorParameter.ratio.rawValue,
-            range: AKDynamicRangeCompressor.ratioRange,
-            unit: .hertz,
-            flags: .default)
-        let threshold = AUParameter(
-            identifier: "threshold",
-            name: "Threshold (in dB) 0 = max",
-            address: AKDynamicRangeCompressorParameter.threshold.rawValue,
-            range: AKDynamicRangeCompressor.thresholdRange,
-            unit: .generic,
-            flags: .default)
-        let attackDuration = AUParameter(
-            identifier: "attackDuration",
-            name: "Attack duration",
-            address: AKDynamicRangeCompressorParameter.attackDuration.rawValue,
-            range: AKDynamicRangeCompressor.attackDurationRange,
-            unit: .seconds,
-            flags: .default)
-        let releaseDuration = AUParameter(
-            identifier: "releaseDuration",
-            name: "Release duration",
-            address: 3,
-            range: AKDynamicRangeCompressor.releaseDurationRange,
-            unit: .seconds,
-            flags: .default)
+        let flags: AudioUnitParameterOptions = [.flag_IsReadable, .flag_IsWritable, .flag_CanRamp]
 
-        setParameterTree(AUParameterTree(children: [ratio, threshold, attackDuration, releaseDuration]))
+        let ratio = AUParameterTree.createParameter(
+            withIdentifier: "ratio",
+            name: "Ratio to compress with, a value > 1 will compress",
+            address: AUParameterAddress(0),
+            min: Float(AKDynamicRangeCompressor.ratioRange.lowerBound),
+            max: Float(AKDynamicRangeCompressor.ratioRange.upperBound),
+            unit: .hertz,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        let threshold = AUParameterTree.createParameter(
+            withIdentifier: "threshold",
+            name: "Threshold (in dB) 0 = max",
+            address: AUParameterAddress(1),
+            min: Float(AKDynamicRangeCompressor.thresholdRange.lowerBound),
+            max: Float(AKDynamicRangeCompressor.thresholdRange.upperBound),
+            unit: .generic,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        let attackTime = AUParameterTree.createParameter(
+            withIdentifier: "attackTime",
+            name: "Attack time",
+            address: AUParameterAddress(2),
+            min: Float(AKDynamicRangeCompressor.attackTimeRange.lowerBound),
+            max: Float(AKDynamicRangeCompressor.attackTimeRange.upperBound),
+            unit: .seconds,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        let releaseTime = AUParameterTree.createParameter(
+            withIdentifier: "releaseTime",
+            name: "Release time",
+            address: AUParameterAddress(3),
+            min: Float(AKDynamicRangeCompressor.releaseTimeRange.lowerBound),
+            max: Float(AKDynamicRangeCompressor.releaseTimeRange.upperBound),
+            unit: .seconds,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+
+        setParameterTree(AUParameterTree.createTree(withChildren: [ratio, threshold, attackTime, releaseTime]))
         ratio.value = Float(AKDynamicRangeCompressor.defaultRatio)
         threshold.value = Float(AKDynamicRangeCompressor.defaultThreshold)
-        attackDuration.value = Float(AKDynamicRangeCompressor.defaultAttackDuration)
-        releaseDuration.value = Float(AKDynamicRangeCompressor.defaultReleaseDuration)
+        attackTime.value = Float(AKDynamicRangeCompressor.defaultAttackTime)
+        releaseTime.value = Float(AKDynamicRangeCompressor.defaultReleaseTime)
     }
 
-    public override var canProcessInPlace: Bool { return true }
+    public override var canProcessInPlace: Bool { get { return true; }}
 
 }

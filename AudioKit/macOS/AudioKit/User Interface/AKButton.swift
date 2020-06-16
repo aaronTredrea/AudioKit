@@ -7,7 +7,6 @@
 //
 
 /// A button, mainly used for playgrounds, but could be useful in your own projects
-import AudioKit
 
 public enum AKButtonStyle {
     case standard
@@ -91,10 +90,7 @@ public enum AKButtonStyle {
             self.highlightAnimationTimer = nil
         }
         self.highlightAnimationAlpha = 0.6
-        highlightAnimationTimer = Timer.scheduledTimer(timeInterval: 0.002,
-                                                       target: self,
-                                                       selector: #selector(highlightAnimationTimerDidFire),
-                                                       userInfo: nil, repeats: true)
+        highlightAnimationTimer = Timer.scheduledTimer(timeInterval: 0.002, target: self, selector: #selector(highlightAnimationTimerDidFire), userInfo: nil, repeats: true)
     }
 
     @objc private func highlightAnimationTimerDidFire() {
@@ -109,7 +105,7 @@ public enum AKButtonStyle {
     /// Initialize the button
     public init(title: String,
                 color: AKColor = AKStylist.sharedInstance.nextColor,
-                frame: CGRect = CGRect(width: 440, height: 60),
+                frame: CGRect = CGRect(x: 0, y: 0, width: 440, height: 60),
                 callback: @escaping (AKButton) -> Void) {
         self.title = title
         self.callback = callback
@@ -146,29 +142,21 @@ public enum AKButtonStyle {
 
     // Default border color per theme
     var borderColorForTheme: AKColor {
-        if let borderColor = borderColor {
-            return borderColor
-        }
+        if let borderColor = borderColor { return borderColor }
 
         switch AKStylist.sharedInstance.theme {
-        case .basic:
-            return AKColor(white: 0.3, alpha: 1.0)
-        case .midnight:
-            return AKColor.white
+        case .basic: return AKColor(white: 0.3, alpha: 1.0)
+        case .midnight: return AKColor.white
         }
     }
 
     // Default text color per theme
     var textColorForTheme: AKColor {
-        if let textColor = textColor {
-            return textColor
-        }
+        if let textColor = textColor { return textColor }
 
         switch AKStylist.sharedInstance.theme {
-        case .basic:
-            return AKColor(white: 0.3, alpha: 1.0)
-        case .midnight:
-            return AKColor.white
+        case .basic: return AKColor(white: 0.3, alpha: 1.0)
+        case .midnight: return AKColor.white
         }
     }
 
@@ -180,10 +168,8 @@ public enum AKButtonStyle {
     func drawButton(rect: CGRect) {
         let cornerRadius: CGFloat = {
             switch self.style {
-            case .standard:
-                return AKButton.standardCornerRadius
-            case .round:
-                return rect.height / 2.0
+            case .standard: return AKButton.standardCornerRadius
+            case .round: return rect.height / 2.0
             }
         }()
 
@@ -216,13 +202,13 @@ public enum AKButtonStyle {
         let labelStyle = NSMutableParagraphStyle()
         labelStyle.alignment = .center
 
-        let labelFontAttributes: [NSAttributedString.Key: Any] = [.font: NSFont.boldSystemFont(ofSize: 24),
-                                   .foregroundColor: textColorForTheme,
-                                   .paragraphStyle: labelStyle]
+        let labelFontAttributes = [NSAttributedString.Key.font: NSFont.boldSystemFont(ofSize: 24),
+                                   NSAttributedString.Key.foregroundColor: textColorForTheme,
+                                   NSAttributedString.Key.paragraphStyle: labelStyle]
 
         let labelInset: CGRect = rect.insetBy(dx: 10, dy: 0)
         let labelTextHeight: CGFloat = NSString(string: title).boundingRect(
-            with: CGSize(width: labelInset.width, height: .infinity),
+            with: CGSize(width: labelInset.width, height: CGFloat.infinity),
             options: .usesLineFragmentOrigin,
             attributes: labelFontAttributes,
             context: nil).size.height

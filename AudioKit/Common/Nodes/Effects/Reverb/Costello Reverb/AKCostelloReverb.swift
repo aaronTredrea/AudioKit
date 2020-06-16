@@ -17,6 +17,7 @@ open class AKCostelloReverb: AKNode, AKToggleable, AKComponent, AKInput {
 
     // MARK: - Properties
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var feedbackParameter: AUParameter?
     fileprivate var cutoffFrequencyParameter: AUParameter?
@@ -33,10 +34,10 @@ open class AKCostelloReverb: AKNode, AKToggleable, AKComponent, AKInput {
     /// Initial value for Cutoff Frequency
     public static let defaultCutoffFrequency = 4_000.0
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
@@ -44,12 +45,15 @@ open class AKCostelloReverb: AKNode, AKToggleable, AKComponent, AKInput {
     /// large hall. A setting of exactly 1 means infinite length, while higher values will make the opcode unstable.
     @objc open dynamic var feedback: Double = defaultFeedback {
         willSet {
-            guard feedback != newValue else { return }
-            if internalAU?.isSetUp == true {
-                feedbackParameter?.value = AUValue(newValue)
+            if feedback == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    feedbackParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.feedback, value: newValue)
         }
     }
@@ -57,12 +61,15 @@ open class AKCostelloReverb: AKNode, AKToggleable, AKComponent, AKInput {
     /// Low-pass cutoff frequency.
     @objc open dynamic var cutoffFrequency: Double = defaultCutoffFrequency {
         willSet {
-            guard cutoffFrequency != newValue else { return }
-            if internalAU?.isSetUp == true {
-                cutoffFrequencyParameter?.value = AUValue(newValue)
+            if cutoffFrequency == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    cutoffFrequencyParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.cutoffFrequency, value: newValue)
         }
     }
@@ -100,7 +107,6 @@ open class AKCostelloReverb: AKNode, AKToggleable, AKComponent, AKInput {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
             input?.connect(to: strongSelf)
@@ -113,6 +119,18 @@ open class AKCostelloReverb: AKNode, AKToggleable, AKComponent, AKInput {
 
         feedbackParameter = tree["feedback"]
         cutoffFrequencyParameter = tree["cutoffFrequency"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
 
         internalAU?.setParameterImmediately(.feedback, value: feedback)
         internalAU?.setParameterImmediately(.cutoffFrequency, value: cutoffFrequency)

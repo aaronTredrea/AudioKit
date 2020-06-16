@@ -27,8 +27,6 @@ namespace AudioKitCore
         
         void pedalDown();
         bool isNoteSustaining(unsigned noteNumber);
-        bool isAnyKeyDown();
-        int firstKeyDown();
         void pedalUp();
     };
 

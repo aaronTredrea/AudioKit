@@ -50,7 +50,6 @@ public class AKLiveViewController: NSViewController {
 
         newView.heightAnchor.constraint(equalToConstant: 60).isActive = true
         stackView?.addArrangedSubview(newView)
-        stackView.setFrameSize(NSSize(width: stackView.frame.width,
-                                      height: stackView.frame.height + newView.frame.height))
+        stackView.setFrameSize(NSSize(width: stackView.frame.width, height: stackView.frame.height + newView.frame.height))
     }
 }

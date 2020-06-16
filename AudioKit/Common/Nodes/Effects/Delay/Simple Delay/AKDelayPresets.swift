@@ -10,7 +10,7 @@
 public extension AKDelay {
 
     /// Short Delay
-    func presetShortDelay() {
+     func presetShortDelay() {
         time = 0.125
         feedback = 0.204
         lowPassCutoff = 5_077.644
@@ -18,7 +18,7 @@ public extension AKDelay {
     }
 
     /// Long, dense delay
-    func presetDenseLongDelay() {
+     func presetDenseLongDelay() {
         time = 0.795
         feedback = 0.900
         lowPassCutoff = 5_453.823
@@ -26,7 +26,7 @@ public extension AKDelay {
     }
 
     /// Electrical Circuits, Robotic Delay Effect
-    func presetElectricCircuitsDelay() {
+     func presetElectricCircuitsDelay() {
         time = 0.025
         feedback = 0.797
         lowPassCutoff = 13_960.832
@@ -34,13 +34,13 @@ public extension AKDelay {
     }
 
     /// Print out current values in case you want to save it as a preset
-    func printCurrentValuesAsPreset() {
-        print("public func presetSomeNewDelay() {")
-        print("    time = \(String(format: "%0.3f", time))")
-        print("    feedback = \(String(format: "%0.3f", feedback))")
-        print("    lowPassCutoff = \(String(format: "%0.3f", lowPassCutoff))")
-        print("    dryWetMix = \(String(format: "%0.3f", dryWetMix))")
-        print("}\n")
+     func printCurrentValuesAsPreset() {
+        AKLog("public func presetSomeNewDelay() {")
+        AKLog("    time = \(String(format: "%0.3f", time))")
+        AKLog("    feedback = \(String(format: "%0.3f", feedback))")
+        AKLog("    lowPassCutoff = \(String(format: "%0.3f", lowPassCutoff))")
+        AKLog("    dryWetMix = \(String(format: "%0.3f", dryWetMix))")
+        AKLog("}\n")
     }
 
 }

@@ -54,7 +54,6 @@ open class AKTester: AKNode, AKToggleable, AKComponent, AKInput {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
 
@@ -65,6 +64,7 @@ open class AKTester: AKNode, AKToggleable, AKComponent, AKInput {
 
     /// Function to start, play, or activate the node, all do the same thing
     @objc open func start() {
+        testedNode?.start()
         internalAU?.start()
     }
 

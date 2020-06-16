@@ -2,11 +2,11 @@
 //  AKChorus.swift
 //  AudioKit
 //
-//  Created by Shane Dunne, revision history on Github.
+//  Created by Shane Dunne
 //  Copyright © 2018 AudioKit. All rights reserved.
 //
 
-/// Shane's Chorus
+/// Stereo Chorus
 ///
 open class AKChorus: AKNode, AKToggleable, AKComponent, AKInput {
     public typealias AKAudioUnitType = AKChorusAudioUnit
@@ -14,12 +14,9 @@ open class AKChorus: AKNode, AKToggleable, AKComponent, AKInput {
     public static let ComponentDescription = AudioComponentDescription(effect: "chrs")
 
     // MARK: - Properties
-    private var internalAU: AKAudioUnitType?
 
-    fileprivate var frequencyParameter: AUParameter?
-    fileprivate var depthParameter: AUParameter?
-    fileprivate var feedbackParameter: AUParameter?
-    fileprivate var dryWetMixParameter: AUParameter?
+    private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     public static let frequencyRange = Double(kAKChorus_MinFrequency) ... Double(kAKChorus_MaxFrequency)
     public static let depthRange = Double(kAKChorus_MinDepth) ... Double(kAKChorus_MaxDepth)
@@ -31,62 +28,87 @@ open class AKChorus: AKNode, AKToggleable, AKComponent, AKInput {
     public static let defaultFeedback = Double(kAKChorus_DefaultFeedback)
     public static let defaultDryWetMix = Double(kAKChorus_DefaultDryWetMix)
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    fileprivate var frequencyParameter: AUParameter?
+    fileprivate var depthParameter: AUParameter?
+    fileprivate var feedbackParameter: AUParameter?
+    fileprivate var dryWetMixParameter: AUParameter?
+
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Modulation Frequency (Hz)
     @objc open dynamic var frequency: Double = defaultFrequency {
         willSet {
-            guard frequency != newValue else { return }
-            if internalAU?.isSetUp == true {
-                frequencyParameter?.value = AUValue(newValue)
+            if frequency == newValue {
                 return
             }
 
-            internalAU?.setParameterImmediately(.frequency, value: newValue)
+            if internalAU?.isSetUp ?? false {
+                if token != nil && frequencyParameter != nil {
+                    frequencyParameter?.setValue(Float(newValue), originator: token!)
+                    return
+                }
+            }
+
+            internalAU?.frequency = newValue
         }
     }
 
     /// Modulation Depth (fraction)
     @objc open dynamic var depth: Double = defaultDepth {
         willSet {
-            guard depth != newValue else { return }
-            if internalAU?.isSetUp == true {
-                depthParameter?.value = AUValue(newValue)
+            if depth == newValue {
                 return
             }
 
-            internalAU?.setParameterImmediately(.depth, value: newValue)
+            if internalAU?.isSetUp ?? false {
+                if token != nil && depthParameter != nil {
+                    depthParameter?.setValue(Float(newValue), originator: token!)
+                    return
+                }
+            }
+
+            internalAU?.depth = newValue
         }
     }
 
     /// Feedback (fraction)
     @objc open dynamic var feedback: Double = defaultFeedback {
         willSet {
-            guard feedback != newValue else { return }
-            if internalAU?.isSetUp == true {
-                feedbackParameter?.value = AUValue(newValue)
+            if feedback == newValue {
                 return
             }
 
-            internalAU?.setParameterImmediately(.feedback, value: newValue)
+            if internalAU?.isSetUp ?? false {
+                if token != nil && feedbackParameter != nil {
+                    feedbackParameter?.setValue(Float(newValue), originator: token!)
+                    return
+                }
+            }
+
+            internalAU?.feedback = newValue
         }
     }
 
     /// Dry Wet Mix (fraction)
     @objc open dynamic var dryWetMix: Double = defaultDryWetMix {
         willSet {
-            guard dryWetMix != newValue else { return }
-            if internalAU?.isSetUp == true {
-                dryWetMixParameter?.value = AUValue(newValue)
+            if dryWetMix == newValue {
                 return
             }
 
-            internalAU?.setParameterImmediately(.dryWetMix, value: newValue)
+            if internalAU?.isSetUp ?? false {
+                if token != nil && dryWetMixParameter != nil {
+                    dryWetMixParameter?.setValue(Float(newValue), originator: token!)
+                    return
+                }
+            }
+
+            internalAU?.dryWetMix = newValue
         }
     }
 
@@ -111,8 +133,7 @@ open class AKChorus: AKNode, AKToggleable, AKComponent, AKInput {
         frequency: Double = defaultFrequency,
         depth: Double = defaultDepth,
         feedback: Double = defaultFeedback,
-        dryWetMix: Double = defaultDryWetMix
-    ) {
+        dryWetMix: Double = defaultDryWetMix) {
 
         self.frequency = frequency
         self.depth = depth
@@ -127,10 +148,10 @@ open class AKChorus: AKNode, AKToggleable, AKComponent, AKInput {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
-            input?.connect(to: strongSelf)
+
+            input?.connect(to: self!)
         }
 
         guard let tree = internalAU?.parameterTree else {
@@ -143,6 +164,17 @@ open class AKChorus: AKNode, AKToggleable, AKComponent, AKInput {
         feedbackParameter = tree["feedback"]
         dryWetMixParameter = tree["dryWetMix"]
 
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
         internalAU?.setParameterImmediately(.frequency, value: frequency)
         internalAU?.setParameterImmediately(.depth, value: depth)
         internalAU?.setParameterImmediately(.feedback, value: feedback)
@@ -153,11 +185,11 @@ open class AKChorus: AKNode, AKToggleable, AKComponent, AKInput {
 
     /// Function to start, play, or activate the node, all do the same thing
     @objc open func start() {
-        internalAU?.start()
+        AKLog("start() \(isStopped)")
     }
 
     /// Function to stop or bypass the node, both are equivalent
     @objc open func stop() {
-        internalAU?.stop()
+        AKLog("stop() \(isPlaying)")
     }
 }

@@ -18,7 +18,7 @@
     sp_data *sp;
 }
 
-- (instancetype)initWithHopSize:(UInt32)hopSize peakCount:(UInt32)peakCount {
+- (instancetype)init {
     self = [super init];
     if (self) {
 
@@ -26,16 +26,15 @@
         sp->sr = 44100;
         sp->nchan = 1;
 
+        int hopSize = 4096;
+        int peakCount = 20;
+
         sp_ptrack_create(&ptrack);
         sp_ptrack_init(sp, ptrack, hopSize, peakCount);
 
         ezmic = [EZMicrophone microphoneWithDelegate:self];
     }
     return self;
-}
-
-- (instancetype)init {
-    return [self initWithHopSize: 4096 peakCount: 20];
 }
 
 - (void)start {

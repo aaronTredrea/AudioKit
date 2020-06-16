@@ -55,7 +55,7 @@ gen_vals
 ##: set to choose the prop clock source.
 
 ##---
-0
+1
 54 "+2(++)--" prop 0 branch
 ##---
 ##: The output clock signal is put through a maytrig, which makes the clock

@@ -24,7 +24,7 @@ public:
     
     ~AKMandolinDSPKernel();
 
-    void init(int channelCount, double sampleRate) override;
+    void init(int _channels, double _sampleRate) override;
 
     void destroy();
 
@@ -50,8 +50,8 @@ public:
     // MARK: Member Variables
 
 private:
-    struct InternalData;
-    std::unique_ptr<InternalData> data;
+    struct _Internal;
+    std::unique_ptr<_Internal> _private;
     
 public:
     bool started = false;

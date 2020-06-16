@@ -27,17 +27,17 @@ public class SDBoosterAudioUnit: AKAudioUnitBase {
         didSet { setParameter(.rightGain, value: rightGain) }
     }
 
-    var rampDuration: Double = 0.0 {
-        didSet { setParameter(.rampDuration, value: rampDuration) }
+    var rampTime: Double = 0.0 {
+        didSet { setParameter(.rampTime, value: rampTime) }
     }
 
     public override func initDSP(withSampleRate sampleRate: Double,
-                                 channelCount count: AVAudioChannelCount) -> AKDSPRef {
+                                 channelCount count: AVAudioChannelCount) -> UnsafeMutableRawPointer! {
         return createSDBoosterDSP(Int32(count), sampleRate)
     }
 
-    override public init(componentDescription: AudioComponentDescription,
-                         options: AudioComponentInstantiationOptions = []) throws {
+    override init(componentDescription: AudioComponentDescription,
+                  options: AudioComponentInstantiationOptions = []) throws {
         try super.init(componentDescription: componentDescription, options: options)
 
         let flags: AudioUnitParameterOptions = [.flag_IsReadable, .flag_IsWritable, .flag_CanRamp]

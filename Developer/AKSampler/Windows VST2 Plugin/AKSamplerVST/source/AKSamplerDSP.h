@@ -1,6 +1,6 @@
 #pragma once
 #include "public.sdk/source/vst2.x/audioeffectx.h"
-#include "AKCoreSampler.hpp"
+#include "Sampler.hpp"
 
 struct VSTFloatParam
 {
@@ -24,7 +24,7 @@ struct VSTBoolParam
     void setFraction(float f) { value = f < 0.5f; }
 };
 
-class AKSamplerDSP : public AudioEffectX, public AKCoreSampler
+class AKSamplerDSP : public AudioEffectX, public AudioKitCore::Sampler
 {
 public:
 	AKSamplerDSP (audioMasterCallback audioMaster, VstInt32 numPrograms);

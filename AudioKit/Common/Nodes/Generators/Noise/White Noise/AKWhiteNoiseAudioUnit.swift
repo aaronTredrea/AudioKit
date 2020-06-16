@@ -11,42 +11,49 @@ import AVFoundation
 public class AKWhiteNoiseAudioUnit: AKGeneratorAudioUnitBase {
 
     func setParameter(_ address: AKWhiteNoiseParameter, value: Double) {
-        setParameterWithAddress(address.rawValue, value: Float(value))
+        setParameterWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     func setParameterImmediately(_ address: AKWhiteNoiseParameter, value: Double) {
-        setParameterImmediatelyWithAddress(address.rawValue, value: Float(value))
+        setParameterImmediatelyWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     var amplitude: Double = AKWhiteNoise.defaultAmplitude {
         didSet { setParameter(.amplitude, value: amplitude) }
     }
 
-    var rampDuration: Double = 0.0 {
-        didSet { setParameter(.rampDuration, value: rampDuration) }
+    var rampTime: Double = 0.0 {
+        didSet { setParameter(.rampTime, value: rampTime) }
     }
 
     public override func initDSP(withSampleRate sampleRate: Double,
-                                 channelCount count: AVAudioChannelCount) -> AKDSPRef {
+                                 channelCount count: AVAudioChannelCount) -> UnsafeMutableRawPointer! {
         return createWhiteNoiseDSP(Int32(count), sampleRate)
     }
 
     public override init(componentDescription: AudioComponentDescription,
-                         options: AudioComponentInstantiationOptions = []) throws {
+                  options: AudioComponentInstantiationOptions = []) throws {
         try super.init(componentDescription: componentDescription, options: options)
 
-        let amplitude = AUParameter(
-            identifier: "amplitude",
-            name: "Amplitude",
-            address: AKWhiteNoiseParameter.amplitude.rawValue,
-            range: AKWhiteNoise.amplitudeRange,
-            unit: .generic,
-            flags: .default)
+        let flags: AudioUnitParameterOptions = [.flag_IsReadable, .flag_IsWritable, .flag_CanRamp]
 
-        setParameterTree(AUParameterTree(children: [amplitude]))
+        let amplitude = AUParameterTree.createParameter(
+            withIdentifier: "amplitude",
+            name: "Amplitude",
+            address: AUParameterAddress(0),
+            min: Float(AKWhiteNoise.amplitudeRange.lowerBound),
+            max: Float(AKWhiteNoise.amplitudeRange.upperBound),
+            unit: .generic,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+
+        setParameterTree(AUParameterTree.createTree(withChildren: [amplitude]))
         amplitude.value = Float(AKWhiteNoise.defaultAmplitude)
     }
 
-    public override var canProcessInPlace: Bool { return true }
+    public override var canProcessInPlace: Bool { get { return true; }}
 
 }

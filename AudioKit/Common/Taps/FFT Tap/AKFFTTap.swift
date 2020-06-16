@@ -7,37 +7,36 @@
 //
 
 /// FFT Calculation for any node
-open class AKFFTTap: NSObject, EZAudioFFTDelegate {
+@objc open class AKFFTTap: NSObject, EZAudioFFTDelegate {
 
     internal let bufferSize: UInt32 = 1_024
     internal var fft: EZAudioFFT?
 
     /// Array of FFT data
-    @objc open var fftData = [Double](zeros: 512)
+    open var fftData = [Double](zeros: 512)
 
     /// Initialze the FFT calculation on a given node
     ///
     /// - parameter input: Node on whose output the FFT will be computed
     ///
-    public init(_ input: AKNode) {
+    @objc public init(_ input: AKNode) {
         super.init()
         fft = EZAudioFFT(maximumBufferSize: vDSP_Length(bufferSize),
                          sampleRate: Float(AKSettings.sampleRate),
                          delegate: self)
-        input.avAudioUnitOrNode.installTap(
-            onBus: 0,
-            bufferSize: bufferSize,
-            format: AKSettings.audioFormat) { [weak self] (buffer, _) -> Void in
-                guard let strongSelf = self else {
-                    AKLog("Unable to create strong reference to self")
-                    return
-                }
-                buffer.frameLength = strongSelf.bufferSize
-                let offset = Int(buffer.frameCapacity - buffer.frameLength)
-                if let tail = buffer.floatChannelData?[0], let existingFFT = strongSelf.fft {
-                    existingFFT.computeFFT(withBuffer: &tail[offset],
-                                           withBufferSize: strongSelf.bufferSize)
-                }
+        input.avAudioNode.installTap(onBus: 0,
+                                     bufferSize: bufferSize,
+                                     format: AudioKit.format) { [weak self] (buffer, _) -> Void in
+                                        guard let strongSelf = self else {
+                                            AKLog("Unable to create strong reference to self")
+                                            return
+                                        }
+                                        buffer.frameLength = strongSelf.bufferSize
+                                        let offset = Int(buffer.frameCapacity - buffer.frameLength)
+                                        if let tail = buffer.floatChannelData?[0], let existingFFT = strongSelf.fft {
+                                            existingFFT.computeFFT(withBuffer: &tail[offset],
+                                                                   withBufferSize: strongSelf.bufferSize)
+                                        }
         }
     }
 

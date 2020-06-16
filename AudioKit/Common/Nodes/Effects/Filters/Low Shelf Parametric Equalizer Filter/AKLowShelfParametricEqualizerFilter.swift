@@ -15,6 +15,7 @@ open class AKLowShelfParametricEqualizerFilter: AKNode, AKToggleable, AKComponen
 
     // MARK: - Properties
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var cornerFrequencyParameter: AUParameter?
     fileprivate var gainParameter: AUParameter?
@@ -38,22 +39,25 @@ open class AKLowShelfParametricEqualizerFilter: AKNode, AKToggleable, AKComponen
     /// Initial value for Q
     public static let defaultQ = 0.707
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Corner frequency.
     @objc open dynamic var cornerFrequency: Double = defaultCornerFrequency {
         willSet {
-            guard cornerFrequency != newValue else { return }
-            if internalAU?.isSetUp == true {
-                cornerFrequencyParameter?.value = AUValue(newValue)
+            if cornerFrequency == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    cornerFrequencyParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.cornerFrequency, value: newValue)
         }
     }
@@ -61,12 +65,15 @@ open class AKLowShelfParametricEqualizerFilter: AKNode, AKToggleable, AKComponen
     /// Amount at which the corner frequency value shall be increased or decreased. A value of 1 is a flat response.
     @objc open dynamic var gain: Double = defaultGain {
         willSet {
-            guard gain != newValue else { return }
-            if internalAU?.isSetUp == true {
-                gainParameter?.value = AUValue(newValue)
+            if gain == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    gainParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.gain, value: newValue)
         }
     }
@@ -74,12 +81,15 @@ open class AKLowShelfParametricEqualizerFilter: AKNode, AKToggleable, AKComponen
     /// Q of the filter. sqrt(0.5) is no resonance.
     @objc open dynamic var q: Double = defaultQ {
         willSet {
-            guard q != newValue else { return }
-            if internalAU?.isSetUp == true {
-                qParameter?.value = AUValue(newValue)
+            if q == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    qParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.Q, value: newValue)
         }
     }
@@ -118,7 +128,6 @@ open class AKLowShelfParametricEqualizerFilter: AKNode, AKToggleable, AKComponen
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
             input?.connect(to: strongSelf)
@@ -132,6 +141,18 @@ open class AKLowShelfParametricEqualizerFilter: AKNode, AKToggleable, AKComponen
         cornerFrequencyParameter = tree["cornerFrequency"]
         gainParameter = tree["gain"]
         qParameter = tree["q"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
 
         internalAU?.setParameterImmediately(.cornerFrequency, value: cornerFrequency)
         internalAU?.setParameterImmediately(.gain, value: gain)

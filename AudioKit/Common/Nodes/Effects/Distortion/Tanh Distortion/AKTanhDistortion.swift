@@ -15,6 +15,7 @@ open class AKTanhDistortion: AKNode, AKToggleable, AKComponent, AKInput {
 
     // MARK: - Properties
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var pregainParameter: AUParameter?
     fileprivate var postgainParameter: AUParameter?
@@ -45,22 +46,25 @@ open class AKTanhDistortion: AKNode, AKToggleable, AKComponent, AKInput {
     /// Initial value for Negative Shape Parameter
     public static let defaultNegativeShapeParameter = 0.0
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Determines the amount of gain applied to the signal before waveshaping. A value of 1 gives slight distortion.
     @objc open dynamic var pregain: Double = defaultPregain {
         willSet {
-            guard pregain != newValue else { return }
-            if internalAU?.isSetUp == true {
-                pregainParameter?.value = AUValue(newValue)
+            if pregain == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    pregainParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.pregain, value: newValue)
         }
     }
@@ -68,12 +72,15 @@ open class AKTanhDistortion: AKNode, AKToggleable, AKComponent, AKInput {
     /// Gain applied after waveshaping
     @objc open dynamic var postgain: Double = defaultPostgain {
         willSet {
-            guard postgain != newValue else { return }
-            if internalAU?.isSetUp == true {
-                postgainParameter?.value = AUValue(newValue)
+            if postgain == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    postgainParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.postgain, value: newValue)
         }
     }
@@ -81,12 +88,15 @@ open class AKTanhDistortion: AKNode, AKToggleable, AKComponent, AKInput {
     /// Shape of the positive part of the signal. A value of 0 gets a flat clip.
     @objc open dynamic var positiveShapeParameter: Double = defaultPositiveShapeParameter {
         willSet {
-            guard positiveShapeParameter != newValue else { return }
-            if internalAU?.isSetUp == true {
-                positiveShapeParameterParameter?.value = AUValue(newValue)
+            if positiveShapeParameter == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    positiveShapeParameterParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.positiveShapeParameter, value: newValue)
         }
     }
@@ -94,12 +104,15 @@ open class AKTanhDistortion: AKNode, AKToggleable, AKComponent, AKInput {
     /// Like the positive shape parameter, only for the negative part.
     @objc open dynamic var negativeShapeParameter: Double = defaultNegativeShapeParameter {
         willSet {
-            guard negativeShapeParameter != newValue else { return }
-            if internalAU?.isSetUp == true {
-                negativeShapeParameterParameter?.value = AUValue(newValue)
+            if negativeShapeParameter == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    negativeShapeParameterParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.negativeShapeParameter, value: newValue)
         }
     }
@@ -141,7 +154,6 @@ open class AKTanhDistortion: AKNode, AKToggleable, AKComponent, AKInput {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
             input?.connect(to: strongSelf)
@@ -156,6 +168,18 @@ open class AKTanhDistortion: AKNode, AKToggleable, AKComponent, AKInput {
         postgainParameter = tree["postgain"]
         positiveShapeParameterParameter = tree["positiveShapeParameter"]
         negativeShapeParameterParameter = tree["negativeShapeParameter"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
 
         internalAU?.setParameterImmediately(.pregain, value: pregain)
         internalAU?.setParameterImmediately(.postgain, value: postgain)

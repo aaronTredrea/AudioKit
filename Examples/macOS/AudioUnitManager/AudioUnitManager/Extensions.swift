@@ -51,6 +51,7 @@ extension String {
     }
 
     func startsWith(string: String) -> Bool {
+
         guard let range = self.range(of: string, options: [.anchored, .caseInsensitive]) else {
             return false
         }
@@ -64,8 +65,10 @@ extension String {
     }
 
     func asciiValue() -> [UInt8] {
+
         var retVal = [UInt8]()
         for val in self.unicodeScalars where val.isASCII {
+
             retVal.append(UInt8(val.value))
         }
         return retVal
@@ -128,6 +131,7 @@ extension String {
         let out = "\(preroll)\(minutes):\(strSeconds)"
         return out
     }
+
 }
 
 extension String.Index {
@@ -160,7 +164,7 @@ extension NSLayoutConstraint {
 
     public static func activateConstraintsEqualToSuperview(child: NSView) {
         guard let superview = child.superview else {
-            print("NSLayoutConstraint.fillSuperview() superview of child is nil")
+            Swift.print("NSLayoutConstraint.fillSuperview() superview of child is nil")
             return
         }
 
@@ -173,6 +177,7 @@ extension NSLayoutConstraint {
             child.bottomAnchor.constraint(equalTo: superview.bottomAnchor)
         ])
     }
+
 }
 
 extension NSView {
@@ -186,4 +191,5 @@ extension NSView {
         let svLocation = self.convert(localPoint, to: self.superview)
         return svLocation
     }
+
 }

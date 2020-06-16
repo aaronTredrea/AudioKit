@@ -21,7 +21,6 @@
  })
  ```
  */
-
 open class AKConverter: NSObject {
     /**
      AKConverterCallback is the callback format for start()
@@ -33,36 +32,19 @@ open class AKConverter: NSObject {
     public static let outputFormats = ["wav", "aif", "caf", "m4a"]
 
     /** Formats that this class can read */
-    public static let inputFormats = AKConverter.outputFormats + [
-        "mp3",
-        "snd",
-        "au",
-        "sd2",
-        "aiff",
-        "aifc",
-        "aac",
-        "mp4",
-        "m4v",
-        "mov",
-        "" // allow files with no extension. convertToPCM can still read the type
-    ]
+    public static let inputFormats = AKConverter.outputFormats + ["mp3", "mp4", "snd", "au", "sd2", "aiff", "aifc", "aac"]
 
-    /// The conversion options, leave nil to adopt the value of the input file
+    /**
+     The conversion options, leave nil to adopt the value of the input file
+     */
     public struct Options {
         public init() {}
         public var format: String?
         public var sampleRate: Double?
         /// used only with PCM data
         public var bitDepth: UInt32?
-        /// used only when outputting compressed from PCM - convertAsset()
-        public var bitRate: UInt32 = 128_000 {
-            didSet {
-                if bitRate < 64_000 {
-                    bitRate = 64_000
-                }
-            }
-        }
-
+        /// used only when outputting compressed from PCM
+        public var bitRate: UInt32 = 256_000
         public var channels: UInt32?
         public var isInterleaved: Bool?
         /// overwrite existing files, set false if you want to handle this before you call start()
@@ -115,24 +97,22 @@ open class AKConverter: NSObject {
             return
         }
 
-        // Format checks are necessary as AVAssetReader has opinions about compressed audio for some reason
-        if isCompressed(url: inputURL), isCompressed(url: outputURL) {
-            // Compressed input and output
+        // Format checks are necessary as AVAssetReader has opinions about compressed audio for some illogical reason
+        if isCompressed(url: inputURL) && isCompressed(url: outputURL) {
             convertCompressed(completionHandler: completionHandler)
+            return
 
         } else if !isCompressed(url: outputURL) {
-            // PCM output
             convertToPCM(completionHandler: completionHandler)
-
-        } else {
-            // PCM input, compressed output
-            convertAsset(completionHandler: completionHandler)
+            return
         }
+
+        convertAsset(completionHandler: completionHandler)
     }
 
     // MARK: - private helper functions
 
-    // The AVFoundation way. This method doesn't handle compressed input - only compressed output.
+    // The AVFoundation way
     private func convertAsset(completionHandler: AKConverterCallback? = nil) {
         guard let inputURL = self.inputURL else {
             completionHandler?(createError(message: "Input file can't be nil."))
@@ -144,8 +124,6 @@ open class AKConverter: NSObject {
         }
 
         let outputFormat = options?.format ?? outputURL.pathExtension.lowercased()
-
-        AKLog("Converting Asset to \(outputFormat)")
 
         // verify outputFormat
         guard AKConverter.outputFormats.contains(outputFormat) else {
@@ -187,7 +165,6 @@ open class AKConverter: NSObject {
 
         if FileManager.default.fileExists(atPath: outputURL.path) {
             if options.eraseFile {
-                AKLog("Warning: removing existing file at \(outputURL.path)")
                 try? FileManager.default.removeItem(at: outputURL)
             } else {
                 let message = "The output file exists already. You need to choose a unique URL or delete the file."
@@ -249,85 +226,66 @@ open class AKConverter: NSObject {
             AVLinearPCMIsNonInterleaved: !(options.isInterleaved ?? inputFile.fileFormat.isInterleaved)
         ]
 
-        // Note: AVAssetReaderOutput does not currently support compressed audio?
+        // Note: AVAssetReaderOutput does not currently support compressed output
         if formatKey == kAudioFormatMPEG4AAC {
+
             if sampleRate > 48_000 {
-                sampleRate = 48_000
+                sampleRate = 44_100
             }
-            // reset these for m4a:
+
             outputSettings = [
                 AVFormatIDKey: formatKey,
                 AVSampleRateKey: sampleRate,
                 AVNumberOfChannelsKey: channels,
-                AVEncoderBitRateKey: Int(options.bitRate),
-                AVEncoderBitRateStrategyKey: AVAudioBitRateStrategy_Constant
+                AVEncoderBitRateKey: options.bitRate
             ]
         }
 
         let writerInput = AVAssetWriterInput(mediaType: .audio, outputSettings: outputSettings)
         writer.add(writerInput)
 
-        guard let track = asset.tracks(withMediaType: .audio).first else {
+        let tracks = asset.tracks(withMediaType: .audio)
+
+        guard !tracks.isEmpty else {
             completionHandler?(createError(message: "No audio was found in the input file."))
             return
         }
 
-        let readerOutput = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
-        guard reader.canAdd(readerOutput) else {
-            completionHandler?(createError(message: "Unable to add reader output."))
-            return
-        }
+        let readerOutput = AVAssetReaderTrackOutput(track: tracks[0], outputSettings: nil)
         reader.add(readerOutput)
 
         if !writer.startWriting() {
-            AKLog("Failed to start writing. " + (writer.error?.localizedDescription ?? ""))
+            let error = String(describing: writer.error)
+            AKLog("Failed to start writing. Error: \(error)")
             completionHandler?(writer.error)
             return
         }
 
         writer.startSession(atSourceTime: CMTime.zero)
+        reader.startReading()
 
-        if !reader.startReading() {
-            AKLog("Failed to start reading. " + (reader.error?.localizedDescription ?? ""))
-            completionHandler?(reader.error)
-            return
-        }
+        let queue = DispatchQueue(label: "io.audiokit.AKConverter.start", qos: .utility)
 
-        let queue = DispatchQueue(label: "io.audiokit.AKConverter.convertAsset")
-
-        // session.progress could be sent out via a delegate for this session
         writerInput.requestMediaDataWhenReady(on: queue, using: {
-            var processing = true // safety flag to prevent runaway loops if errors
+            while writerInput.isReadyForMoreMediaData {
 
-            while writerInput.isReadyForMoreMediaData, processing {
-                if reader.status == .reading,
-                    let buffer = readerOutput.copyNextSampleBuffer() {
+                if reader.status == .failed {
+                    AKLog("Conversion Failed")
+                    break
+                }
+
+                if let buffer = readerOutput.copyNextSampleBuffer() {
                     writerInput.append(buffer)
 
                 } else {
                     writerInput.markAsFinished()
-
-                    switch reader.status {
-                    case .failed:
-                        AKLog("Conversion failed with error" + (reader.error?.localizedDescription ?? "Unknown"))
-                        writer.cancelWriting()
-                        completionHandler?(reader.error)
-                    case .cancelled:
-                        AKLog("Conversion cancelled")
-                        completionHandler?(nil)
-                    case .completed:
-                        writer.finishWriting {
-                            switch writer.status {
-                            case .failed:
-                                completionHandler?(writer.error)
-                            default:
-                                completionHandler?(nil)
-                            }
+                    writer.endSession(atSourceTime: asset.duration)
+                    writer.finishWriting {
+                        // AKLog("DONE: \(self.reader!.asset)")
+                        DispatchQueue.main.async {
+                            completionHandler?(nil)
                         }
-                    default:
-                        break
                     }
-                    processing = false
                 }
             }
         }) // requestMediaDataWhenReady
@@ -347,10 +305,6 @@ open class AKConverter: NSObject {
 
         let asset = AVURLAsset(url: inputURL)
         guard let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else { return }
-
-        AKLog("Converting to AVAssetExportPresetAppleM4A with default settings.")
-
-        // session.progress could be sent out via a delegate for this session
         session.outputURL = outputURL
         session.outputFileType = .m4a
         session.exportAsynchronously {
@@ -358,9 +312,10 @@ open class AKConverter: NSObject {
         }
     }
 
-    // Currently, as of 2017, if you want to convert from a compressed
+    // Currently as of 2017, if you want to convert from a compressed
     // format to a pcm one, you still have to hit CoreAudio
     private func convertToPCM(completionHandler: AKConverterCallback? = nil) {
+
         guard let inputURL = self.inputURL else {
             completionHandler?(createError(message: "Input file can't be nil."))
             return
@@ -375,7 +330,6 @@ open class AKConverter: NSObject {
             return
         }
 
-        let inputFormat = inputURL.pathExtension.lowercased()
         let outputFormat = options?.format ?? outputURL.pathExtension.lowercased()
 
         AKLog("convertToPCM() to \(outputURL)")
@@ -402,12 +356,7 @@ open class AKConverter: NSObject {
         var srcFormat = AudioStreamBasicDescription()
         var dstFormat = AudioStreamBasicDescription()
 
-        error = ExtAudioFileOpenURL(inputURL as CFURL, &sourceFile)
-        if error != noErr {
-            completionHandler?(createError(message: "Unable to open the input file."))
-            return
-        }
-
+        ExtAudioFileOpenURL(inputURL as CFURL, &sourceFile)
         var thePropertySize = UInt32(MemoryLayout.stride(ofValue: srcFormat))
 
         guard let inputFile = sourceFile else {
@@ -427,18 +376,10 @@ open class AKConverter: NSObject {
         let outputChannels = options?.channels ?? srcFormat.mChannelsPerFrame
         var outputBitRate = options?.bitDepth ?? srcFormat.mBitsPerChannel
 
-        guard inputFormat != outputFormat ||
-            outputSampleRate != srcFormat.mSampleRate ||
-            outputChannels != srcFormat.mChannelsPerFrame ||
-            outputBitRate != srcFormat.mBitsPerChannel else {
-            completionHandler?(createError(message: "No conversion is needed, formats are the same."))
-            return
-        }
-
         var outputBytesPerFrame = outputBitRate * outputChannels / 8
         var outputBytesPerPacket = options?.bitDepth == nil ? srcFormat.mBytesPerPacket : outputBytesPerFrame
 
-        // in the input file this indicates a compressed format such as mp3
+        // outputBitRate == 0 : in the input file this indicates a compressed format such as mp3
         if outputBitRate == 0 {
             outputBitRate = 16
             outputBytesPerPacket = 2 * outputChannels
@@ -459,12 +400,13 @@ open class AKConverter: NSObject {
         }
 
         // Create destination file
-        error = ExtAudioFileCreateWithURL(outputURL as CFURL,
-                                          format,
-                                          &dstFormat,
-                                          nil,
-                                          AudioFileFlags.eraseFile.rawValue, // overwrite old file if present
-                                          &destinationFile)
+        error = ExtAudioFileCreateWithURL(
+            outputURL as CFURL,
+            format,
+            &dstFormat,
+            nil,
+            AudioFileFlags.eraseFile.rawValue, // overwrite old file if present
+            &destinationFile)
 
         if error != noErr {
             completionHandler?(createError(message: "Unable to create output file."))
@@ -494,39 +436,40 @@ open class AKConverter: NSObject {
             return
         }
         let bufferByteSize: UInt32 = 32_768
-        var srcBuffer = [UInt8](repeating: 0, count: Int(bufferByteSize))
+        var srcBuffer = [UInt8](repeating: 0, count: 32_768)
         var sourceFrameOffset: UInt32 = 0
 
-        srcBuffer.withUnsafeMutableBytes { ptr in
-            while true {
-                let mBuffer = AudioBuffer(mNumberChannels: srcFormat.mChannelsPerFrame,
-                                          mDataByteSize: bufferByteSize,
-                                          mData: ptr.baseAddress)
+        while true {
+            var fillBufList = AudioBufferList(
+                mNumberBuffers: 1,
+                mBuffers: AudioBuffer(
+                    mNumberChannels: srcFormat.mChannelsPerFrame,
+                    mDataByteSize: UInt32(srcBuffer.count),
+                    mData: &srcBuffer
+                )
+            )
+            var numFrames: UInt32 = 0
 
-                var fillBufList = AudioBufferList(mNumberBuffers: 1, mBuffers: mBuffer)
-                var numFrames: UInt32 = 0
+            if dstFormat.mBytesPerFrame > 0 {
+                numFrames = bufferByteSize / dstFormat.mBytesPerFrame
+            }
 
-                if dstFormat.mBytesPerFrame > 0 {
-                    numFrames = bufferByteSize / dstFormat.mBytesPerFrame
-                }
+            error = ExtAudioFileRead(inputFile, &numFrames, &fillBufList)
+            if error != noErr {
+                completionHandler?(createError(message: "Unable to read input file."))
+                return
+            }
+            if numFrames == 0 {
+                error = noErr
+                break
+            }
 
-                error = ExtAudioFileRead(inputFile, &numFrames, &fillBufList)
-                if error != noErr {
-                    completionHandler?(createError(message: "Unable to read input file."))
-                    return
-                }
-                if numFrames == 0 {
-                    error = noErr
-                    break
-                }
+            sourceFrameOffset += numFrames
 
-                sourceFrameOffset += numFrames
-
-                error = ExtAudioFileWrite(outputFile, numFrames, &fillBufList)
-                if error != noErr {
-                    completionHandler?(createError(message: "Unable to write output file."))
-                    return
-                }
+            error = ExtAudioFileWrite(outputFile, numFrames, &fillBufList)
+            if error != noErr {
+                completionHandler?(createError(message: "Unable to write output file."))
+                return
             }
         }
 
@@ -542,12 +485,13 @@ open class AKConverter: NSObject {
             return
         }
 
+        // no errors. yay.
         completionHandler?(nil)
     }
 
     private func isCompressed(url: URL) -> Bool {
         let ext = url.pathExtension.lowercased()
-        return (ext == "m4a" || ext == "mp3" || ext == "mp4" || ext == "m4v" || ext == "mpg")
+        return (ext == "m4a" || ext == "mp3" || ext == "mp4")
     }
 
     private func createError(message: String, code: Int = 1) -> NSError {

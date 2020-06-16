@@ -12,14 +12,14 @@
 
 typedef NS_ENUM(AUParameterAddress, AKStereoFieldLimiterParameter) {
     AKStereoFieldLimiterParameterAmount,
-    AKStereoFieldLimiterParameterRampDuration
+    AKStereoFieldLimiterParameterRampTime
 };
 
 #import "AKLinearParameterRamp.hpp"  // have to put this here to get it included in umbrella header
 
 #ifndef __cplusplus
 
-AKDSPRef createStereoFieldLimiterDSP(int channelCount, double sampleRate);
+void* createStereoFieldLimiterDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -39,25 +39,25 @@ public:
         amountRamp.setDurationInSamples(10000);
     }
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     void setParameter(AUParameterAddress address, float value, bool immediate) override {
         switch (address) {
             case AKStereoFieldLimiterParameterAmount:
                 amountRamp.setTarget(value, immediate);
                 break;
-            case AKStereoFieldLimiterParameterRampDuration:
-                amountRamp.setRampDuration(value, sampleRate);
+            case AKStereoFieldLimiterParameterRampTime:
+                amountRamp.setRampTime(value, _sampleRate);
                 break;
         }
     }
 
-    /// Uses the ParameterAddress as a key 
+    /** Uses the ParameterAddress as a key */
     float getParameter(AUParameterAddress address) override {
         switch (address) {
             case AKStereoFieldLimiterParameterAmount:
                 return amountRamp.getTarget();
-            case AKStereoFieldLimiterParameterRampDuration:
-                return amountRamp.getRampDuration(sampleRate);
+            case AKStereoFieldLimiterParameterRampTime:
+                return amountRamp.getRampTime(_sampleRate);
         }
         return 0;
     }
@@ -72,21 +72,21 @@ public:
             int frameOffset = int(frameIndex + bufferOffset);
             // do ramping every 8 samples
             if ((frameOffset & 0x7) == 0) {
-                amountRamp.advanceTo(now + frameOffset);
+                amountRamp.advanceTo(_now + frameOffset);
             }
             float amount = amountRamp.getValue();
 
-            if (!isStarted) {
-                outBufferListPtr->mBuffers[0] = inBufferListPtr->mBuffers[0];
-                outBufferListPtr->mBuffers[1] = inBufferListPtr->mBuffers[1];
+            if (!_playing) {
+                _outBufferListPtr->mBuffers[0] = _inBufferListPtr->mBuffers[0];
+                _outBufferListPtr->mBuffers[1] = _inBufferListPtr->mBuffers[1];
                 return;
             }
 
             float *tmpin[2];
             float *tmpout[2];
-            for (int channel = 0; channel < channelCount; ++channel) {
-                float *in  = (float *)inBufferListPtr->mBuffers[channel].mData  + frameOffset;
-                float *out = (float *)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+            for (int channel = 0; channel < _nChannels; ++channel) {
+                float *in  = (float *)_inBufferListPtr->mBuffers[channel].mData  + frameOffset;
+                float *out = (float *)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
                 if (channel < 2) {
                     tmpin[channel] = in;
                     tmpout[channel] = out;

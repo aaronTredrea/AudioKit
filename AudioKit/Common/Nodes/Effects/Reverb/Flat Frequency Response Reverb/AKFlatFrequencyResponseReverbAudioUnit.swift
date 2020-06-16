@@ -11,42 +11,49 @@ import AVFoundation
 public class AKFlatFrequencyResponseReverbAudioUnit: AKAudioUnitBase {
 
     func setParameter(_ address: AKFlatFrequencyResponseReverbParameter, value: Double) {
-        setParameterWithAddress(address.rawValue, value: Float(value))
+        setParameterWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     func setParameterImmediately(_ address: AKFlatFrequencyResponseReverbParameter, value: Double) {
-        setParameterImmediatelyWithAddress(address.rawValue, value: Float(value))
+        setParameterImmediatelyWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     var reverbDuration: Double = AKFlatFrequencyResponseReverb.defaultReverbDuration {
         didSet { setParameter(.reverbDuration, value: reverbDuration) }
     }
 
-    var rampDuration: Double = 0.0 {
-        didSet { setParameter(.rampDuration, value: rampDuration) }
+    var rampTime: Double = 0.0 {
+        didSet { setParameter(.rampTime, value: rampTime) }
     }
 
     public override func initDSP(withSampleRate sampleRate: Double,
-                                 channelCount count: AVAudioChannelCount) -> AKDSPRef {
+                                 channelCount count: AVAudioChannelCount) -> UnsafeMutableRawPointer! {
         return createFlatFrequencyResponseReverbDSP(Int32(count), sampleRate)
     }
 
     public override init(componentDescription: AudioComponentDescription,
-                         options: AudioComponentInstantiationOptions = []) throws {
+                  options: AudioComponentInstantiationOptions = []) throws {
         try super.init(componentDescription: componentDescription, options: options)
 
-        let reverbDuration = AUParameter(
-            identifier: "reverbDuration",
-            name: "Reverb Duration (Seconds)",
-            address: AKFlatFrequencyResponseReverbParameter.reverbDuration.rawValue,
-            range: AKFlatFrequencyResponseReverb.reverbDurationRange,
-            unit: .seconds,
-            flags: .default)
+        let flags: AudioUnitParameterOptions = [.flag_IsReadable, .flag_IsWritable, .flag_CanRamp]
 
-        setParameterTree(AUParameterTree(children: [reverbDuration]))
+        let reverbDuration = AUParameterTree.createParameter(
+            withIdentifier: "reverbDuration",
+            name: "Reverb Duration (Seconds)",
+            address: AUParameterAddress(0),
+            min: Float(AKFlatFrequencyResponseReverb.reverbDurationRange.lowerBound),
+            max: Float(AKFlatFrequencyResponseReverb.reverbDurationRange.upperBound),
+            unit: .seconds,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+
+        setParameterTree(AUParameterTree.createTree(withChildren: [reverbDuration]))
         reverbDuration.value = Float(AKFlatFrequencyResponseReverb.defaultReverbDuration)
     }
 
-    public override var canProcessInPlace: Bool { return true }
+    public override var canProcessInPlace: Bool { get { return true; }}
 
 }

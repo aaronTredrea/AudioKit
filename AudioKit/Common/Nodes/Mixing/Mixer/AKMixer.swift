@@ -6,7 +6,7 @@
 //  Copyright © 2018 AudioKit. All rights reserved.
 //
 
-/// AudioKit version of Apple's Mixer Node. Mixes a varaiadic list of AKNodes.
+/// AudioKit version of Apple's Mixer Node
 open class AKMixer: AKNode, AKToggleable, AKInput {
     /// The internal mixer node
     fileprivate var mixerAU = AVAudioMixerNode()
@@ -16,15 +16,6 @@ open class AKMixer: AKNode, AKToggleable, AKInput {
         didSet {
             volume = max(volume, 0)
             mixerAU.outputVolume = Float(volume)
-        }
-    }
-
-    /// Output Pan (Default 0 = center)
-    @objc open dynamic var pan: Double = 1.0 {
-        didSet {
-            pan = min(pan, 1)
-            pan = max(pan, -1)
-            mixerAU.pan = Float(pan)
         }
     }
 
@@ -44,12 +35,11 @@ open class AKMixer: AKNode, AKToggleable, AKInput {
     ///
     /// - parameter inputs: A variadic list of AKNodes
     ///
-    // swiftlint:disable force_unwrapping
+    //swiftlint:disable force_unwrapping
     public convenience init(_ inputs: AKNode?...) {
         self.init(inputs.compactMap { $0 })
     }
-
-    // swiftlint:enable force_unwrapping
+    //swiftlint:enable force_unwrapping
 
     /// Initialize the mixer node with multiple inputs
     ///
@@ -79,7 +69,7 @@ open class AKMixer: AKNode, AKToggleable, AKInput {
 
     /// Detach
     @objc open override func detach() {
-        super.detach()
+      super.detach()
     }
 
     /// Connnect another input after initialization // Deprecated
@@ -89,23 +79,23 @@ open class AKMixer: AKNode, AKToggleable, AKInput {
     /// If you use this it is up to your application to keep track of what inputs are in use to make sure you
     /// don't overwrite an existing channel with an active node that is active.
 
-    // swiftlint:disable line_length
+    //swiftlint:disable line_length
     @available(*, deprecated, message: "use connect(to:AKNode) or connect(to:AKNode, bus:Int) from the upstream node instead")
     open func connect(_ input: AKNode?, bus: Int? = nil) {
         input?.connect(to: self, bus: bus ?? nextInput.bus)
     }
-
-    // swiftlint:enable line_length
+    //swiftlint:enable line_length
 
     // It is not possible to use @objc on AKOutput extension, so [connectWithInput:bus:]
     /// Connect for Objectivec access, with bus definition
     @objc open func connect(input: AKNode?, bus: Int) {
-        input?.connect(to: self, bus: bus)
+      input?.connect(to: self, bus: bus)
     }
 
     // It is not possible to use @objc on AKOutput extension, so [connectWithInput:]
     /// Connect for Objectivec access
     @objc open func connect(input: AKNode?) {
-        input?.connect(to: self, bus: nextInput.bus)
+      input?.connect(to: self, bus: nextInput.bus)
     }
+
 }

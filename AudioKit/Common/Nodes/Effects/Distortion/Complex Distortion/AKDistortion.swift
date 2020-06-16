@@ -211,7 +211,7 @@ open class AKDistortion: AKNode, AKToggleable, AUEffect, AKInput {
         let effect = _Self.effect
         au = AUWrapper(effect)
 
-        super.init(avAudioUnit: effect, attach: true)
+        super.init(avAudioNode: effect, attach: true)
 
         input?.connect(to: self)
 
@@ -253,7 +253,7 @@ open class AKDistortion: AKNode, AKToggleable, AUEffect, AKInput {
     }
 
     /// Disconnect the node
-    open override func detach() {
+    override open func disconnect() {
         stop()
         AudioKit.detach(nodes: [self.avAudioNode])
     }

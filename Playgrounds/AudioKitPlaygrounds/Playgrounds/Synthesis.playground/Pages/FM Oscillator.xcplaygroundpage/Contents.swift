@@ -8,7 +8,7 @@ import AudioKitUI
 
 var oscillator = AKFMOscillator()
 oscillator.amplitude = 0.1
-oscillator.rampDuration = 0.1
+oscillator.rampTime = 0.1
 AudioKit.output = oscillator
 try AudioKit.start()
 
@@ -20,7 +20,7 @@ class LiveView: AKLiveViewController {
     var modulatingMultiplierSlider: AKSlider!
     var modulationIndexSlider: AKSlider!
     var amplitudeSlider: AKSlider!
-    var rampDurationSlider: AKSlider!
+    var rampTimeSlider: AKSlider!
 
     override func viewDidLoad() {
         addTitle("FM Oscillator")
@@ -56,7 +56,7 @@ class LiveView: AKLiveViewController {
             self.modulatingMultiplierSlider?.value = oscillator.modulatingMultiplier
             self.modulationIndexSlider?.value = oscillator.modulationIndex
             self.amplitudeSlider?.value = oscillator.amplitude
-            self.rampDurationSlider?.value = oscillator.rampDuration
+            self.rampTimeSlider?.value = oscillator.rampTime
         })
 
         addView(AKButton(title: "Randomize") { _ in
@@ -104,14 +104,14 @@ class LiveView: AKLiveViewController {
         }
         addView(amplitudeSlider)
 
-        rampDurationSlider = AKSlider(property: "Ramp Duration",
-                                  value: oscillator.rampDuration,
+        rampTimeSlider = AKSlider(property: "Ramp Time",
+                                  value: oscillator.rampTime,
                                   range: 0 ... 10,
                                   format: "%0.3f s"
         ) { time in
-            oscillator.rampDuration = time
+            oscillator.rampTime = time
         }
-        addView(rampDurationSlider)
+        addView(rampTimeSlider)
     }
 }
 

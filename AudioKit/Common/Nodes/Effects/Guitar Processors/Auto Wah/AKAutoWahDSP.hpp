@@ -14,12 +14,12 @@ typedef NS_ENUM(AUParameterAddress, AKAutoWahParameter) {
     AKAutoWahParameterWah,
     AKAutoWahParameterMix,
     AKAutoWahParameterAmplitude,
-    AKAutoWahParameterRampDuration
+    AKAutoWahParameterRampTime
 };
 
 #ifndef __cplusplus
 
-AKDSPRef createAutoWahDSP(int channelCount, double sampleRate);
+void* createAutoWahDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -27,11 +27,12 @@ AKDSPRef createAutoWahDSP(int channelCount, double sampleRate);
 
 class AKAutoWahDSP : public AKSoundpipeDSPBase {
 private:
-    struct InternalData;
-    std::unique_ptr<InternalData> data;
+    struct _Internal;
+    std::unique_ptr<_Internal> _private;
  
 public:
     AKAutoWahDSP();
+    ~AKAutoWahDSP();
 
     float wahLowerBound = 0.0;
     float wahUpperBound = 1.0;
@@ -44,7 +45,7 @@ public:
     float defaultMix = 1.0;
     float defaultAmplitude = 0.1;
 
-    int defaultRampDurationSamples = 10000;
+    int defaultRampTimeSamples = 10000;
 
     // Uses the ParameterAddress as a key
     void setParameter(AUParameterAddress address, float value, bool immediate) override;
@@ -52,9 +53,9 @@ public:
     // Uses the ParameterAddress as a key
     float getParameter(AUParameterAddress address) override;
     
-    void init(int channelCount, double sampleRate) override;
+    void init(int _channels, double _sampleRate) override;
 
-    void deinit() override;
+    void destroy();
 
     void process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) override;
 };

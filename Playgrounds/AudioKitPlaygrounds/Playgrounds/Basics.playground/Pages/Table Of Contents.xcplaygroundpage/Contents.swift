@@ -22,7 +22,7 @@
 //: * [Dry Wet Mixer](Dry%20Wet%20Mixer)
 //: * [Balancing Nodes](Balancing%20Nodes)
 //: * [Stereo Panning](Stereo%20Panning)
-//: * [Parameter Ramping](Parameter%20Ramping)
+//: * [Parameter Ramp Time](Parameter%20Ramp%20Time)
 //: * [Tables](Tables)
 //:
 //: A gentle introduction to the power of AudioKit operations:

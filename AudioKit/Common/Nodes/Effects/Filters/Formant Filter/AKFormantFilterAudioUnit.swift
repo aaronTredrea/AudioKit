@@ -11,11 +11,11 @@ import AVFoundation
 public class AKFormantFilterAudioUnit: AKAudioUnitBase {
 
     func setParameter(_ address: AKFormantFilterParameter, value: Double) {
-        setParameterWithAddress(address.rawValue, value: Float(value))
+        setParameterWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     func setParameterImmediately(_ address: AKFormantFilterParameter, value: Double) {
-        setParameterImmediatelyWithAddress(address.rawValue, value: Float(value))
+        setParameterImmediatelyWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     var centerFrequency: Double = AKFormantFilter.defaultCenterFrequency {
@@ -30,47 +30,64 @@ public class AKFormantFilterAudioUnit: AKAudioUnitBase {
         didSet { setParameter(.decayDuration, value: decayDuration) }
     }
 
-    var rampDuration: Double = 0.0 {
-        didSet { setParameter(.rampDuration, value: rampDuration) }
+    var rampTime: Double = 0.0 {
+        didSet { setParameter(.rampTime, value: rampTime) }
     }
 
     public override func initDSP(withSampleRate sampleRate: Double,
-                                 channelCount count: AVAudioChannelCount) -> AKDSPRef {
+                                 channelCount count: AVAudioChannelCount) -> UnsafeMutableRawPointer! {
         return createFormantFilterDSP(Int32(count), sampleRate)
     }
 
     public override init(componentDescription: AudioComponentDescription,
-                         options: AudioComponentInstantiationOptions = []) throws {
+                  options: AudioComponentInstantiationOptions = []) throws {
         try super.init(componentDescription: componentDescription, options: options)
 
-        let centerFrequency = AUParameter(
-            identifier: "centerFrequency",
-            name: "Center Frequency (Hz)",
-            address: AKFormantFilterParameter.centerFrequency.rawValue,
-            range: AKFormantFilter.centerFrequencyRange,
-            unit: .hertz,
-            flags: .default)
-        let attackDuration = AUParameter(
-            identifier: "attackDuration",
-            name: "Impulse response attack time (Seconds)",
-            address: AKFormantFilterParameter.attackDuration.rawValue,
-            range: AKFormantFilter.attackDurationRange,
-            unit: .seconds,
-            flags: .default)
-        let decayDuration = AUParameter(
-            identifier: "decayDuration",
-            name: "Impulse reponse decay time (Seconds)",
-            address: AKFormantFilterParameter.decayDuration.rawValue,
-            range: AKFormantFilter.decayDurationRange,
-            unit: .seconds,
-            flags: .default)
+        let flags: AudioUnitParameterOptions = [.flag_IsReadable, .flag_IsWritable, .flag_CanRamp]
 
-        setParameterTree(AUParameterTree(children: [centerFrequency, attackDuration, decayDuration]))
+        let centerFrequency = AUParameterTree.createParameter(
+            withIdentifier: "centerFrequency",
+            name: "Center Frequency (Hz)",
+            address: AUParameterAddress(0),
+            min: Float(AKFormantFilter.centerFrequencyRange.lowerBound),
+            max: Float(AKFormantFilter.centerFrequencyRange.upperBound),
+            unit: .hertz,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        let attackDuration = AUParameterTree.createParameter(
+            withIdentifier: "attackDuration",
+            name: "Impulse response attack time (Seconds)",
+            address: AUParameterAddress(1),
+            min: Float(AKFormantFilter.attackDurationRange.lowerBound),
+            max: Float(AKFormantFilter.attackDurationRange.upperBound),
+            unit: .seconds,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        let decayDuration = AUParameterTree.createParameter(
+            withIdentifier: "decayDuration",
+            name: "Impulse reponse decay time (Seconds)",
+            address: AUParameterAddress(2),
+            min: Float(AKFormantFilter.decayDurationRange.lowerBound),
+            max: Float(AKFormantFilter.decayDurationRange.upperBound),
+            unit: .seconds,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+
+        setParameterTree(AUParameterTree.createTree(withChildren: [centerFrequency, attackDuration, decayDuration]))
         centerFrequency.value = Float(AKFormantFilter.defaultCenterFrequency)
         attackDuration.value = Float(AKFormantFilter.defaultAttackDuration)
         decayDuration.value = Float(AKFormantFilter.defaultDecayDuration)
     }
 
-    public override var canProcessInPlace: Bool { return true }
+    public override var canProcessInPlace: Bool { get { return true; }}
 
 }

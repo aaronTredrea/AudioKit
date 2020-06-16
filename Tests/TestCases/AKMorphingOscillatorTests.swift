@@ -13,21 +13,14 @@ class AKMorphingOscillatorTests: AKTestCase {
 
     let waveforms = [AKTable(.sine), AKTable(.triangle), AKTable(.sawtooth), AKTable(.square)]
 
-    var oscillator = AKMorphingOscillator()
-
-    override func setUp() {
-        oscillator.rampDuration = 0.0
-        afterStart = { self.oscillator.start() }
-    }
-
     func testDefault() {
-        output = oscillator
+        output = AKMorphingOscillator()
         AKTestMD5("b3168bffcc63e44c6850fbf7c17ad98d")
     }
 
     func testParametersSetAfterInit() {
-        oscillator = AKMorphingOscillator(waveformArray: waveforms)
-        oscillator.rampDuration = 0
+        let oscillator = AKMorphingOscillator(waveformArray: waveforms)
+        oscillator.rampTime = 0
         oscillator.frequency = 1_234
         oscillator.amplitude = 0.5
         oscillator.index = 1.234
@@ -38,13 +31,12 @@ class AKMorphingOscillatorTests: AKTestCase {
     }
 
     func testParametersSetOnInit() {
-        oscillator = AKMorphingOscillator(waveformArray: waveforms,
-                                          frequency: 1_234,
-                                          amplitude: 0.5,
-                                          index: 1.234,
-                                          detuningOffset: 11,
-                                          detuningMultiplier: 1.1)
-        output = oscillator
+        output = AKMorphingOscillator(waveformArray: waveforms,
+                                      frequency: 1_234,
+                                      amplitude: 0.5,
+                                      index: 1.234,
+                                      detuningOffset: 11,
+                                      detuningMultiplier: 1.1)
 
         AKTestMD5("382e738d40fdda8c38e4b9ad1fbde591")
     }

@@ -14,19 +14,19 @@ import UIKit
     /// Type of function to call when values of the ADSR have changed
     public typealias ADSRCallback = (Double, Double, Double, Double) -> Void
 
-    /// Attack duration in seconds, Default: 0.1
+    /// Attack time in seconds, Default: 0.1
     @IBInspectable open var attackDuration: Double = 0.100
 
-    /// Decay duration in seconds, Default: 0.1
+    /// Decay time in seconds, Default: 0.1
     @IBInspectable open var decayDuration: Double = 0.100
 
     /// Sustain Level (0-1), Default: 0.5
     @IBInspectable open var sustainLevel: Double = 0.50
 
-    /// Release duration in seconds, Default: 0.1
+    /// Release time in seconds, Default: 0.1
     @IBInspectable open var releaseDuration: Double = 0.100
 
-    /// Attack duration in milliseconds
+    /// Attack time in milliseconds
     var attackTime: CGFloat {
         get {
             return CGFloat(attackDuration * 1_000.0)
@@ -36,7 +36,7 @@ import UIKit
         }
     }
 
-    /// Decay duration in milliseconds
+    /// Decay time in milliseconds
     var decayTime: CGFloat {
         get {
             return CGFloat(decayDuration * 1_000.0)
@@ -56,7 +56,7 @@ import UIKit
         }
     }
 
-    /// Release duration in milliseconds
+    /// Release time in milliseconds
     var releaseTime: CGFloat {
         get {
             return CGFloat(releaseDuration * 1_000.0)
@@ -89,7 +89,7 @@ import UIKit
     @IBInspectable open var releaseColor: UIColor = #colorLiteral(red: 0.720, green: 0.519, blue: 0.888, alpha: 1.000)
 
     /// Background color
-    @IBInspectable open var bgColor: UIColor = AKStylist.sharedInstance.bgColor
+    @IBInspectable open var bgColor = AKStylist.sharedInstance.bgColor
 
     /// Width of the envelope curve
     @IBInspectable open var curveStrokeWidth: CGFloat = 1
@@ -109,14 +109,14 @@ import UIKit
     }
 
     /// Initialization of the view from within interface builder
-    public required init?(coder aDecoder: NSCoder) {
+    required public init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
     }
 
     // MARK: - Storyboard Rendering
 
     /// Perform necessary operation to allow the view to be rendered in interface builder
-    open override func prepareForInterfaceBuilder() {
+    override open func prepareForInterfaceBuilder() {
         super.prepareForInterfaceBuilder()
 
         contentMode = .scaleAspectFill
@@ -124,7 +124,7 @@ import UIKit
     }
 
     /// Size of the view
-    open override var intrinsicContentSize: CGSize {
+    override open var intrinsicContentSize: CGSize {
         return CGSize(width: 440, height: 150)
     }
 
@@ -136,7 +136,7 @@ import UIKit
     // MARK: - Touch Handling
 
     /// Handle new touches
-    open override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override open func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         if let touch = touches.first {
             let touchLocation = touch.location(in: self)
 
@@ -155,7 +155,7 @@ import UIKit
     }
 
     /// Handle moving touches
-    open override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override open func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         if let touch = touches.first {
             let touchLocation = touch.location(in: self)
 
@@ -363,7 +363,7 @@ import UIKit
     }
 
     /// Draw the view
-    open override func draw(_ rect: CGRect) {
+    override open func draw(_ rect: CGRect) {
         drawCurveCanvas(size: rect.size, attackDurationMS: attackTime,
                         decayDurationMS: decayTime,
                         releaseDurationMS: releaseTime,

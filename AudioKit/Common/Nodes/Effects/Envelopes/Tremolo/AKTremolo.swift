@@ -14,52 +14,49 @@ open class AKTremolo: AKNode, AKToggleable, AKComponent, AKInput {
     public static let ComponentDescription = AudioComponentDescription(effect: "trem")
 
     // MARK: - Properties
-    private var internalAU: AKAudioUnitType?
 
+    private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
+
+    fileprivate var waveform: AKTable?
     fileprivate var frequencyParameter: AUParameter?
     fileprivate var depthParameter: AUParameter?
 
-    /// Lower and upper bounds for Frequency
-    public static let frequencyRange = 0.0 ... 100.0
-
-    /// Lower and upper bounds for Depth
-    public static let depthRange = 0.0 ... 1.0
-
-    /// Initial value for Frequency
-    public static let defaultFrequency = 10.0
-
-    /// Initial value for Depth
-    public static let defaultDepth = 1.0
-
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Frequency (Hz)
-    @objc open dynamic var frequency: Double = defaultFrequency {
+    @objc open dynamic var frequency: Double = 10.0 {
         willSet {
-            guard frequency != newValue else { return }
-            if internalAU?.isSetUp == true {
-                frequencyParameter?.value = AUValue(newValue)
+            if frequency == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    frequencyParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.frequency, value: newValue)
         }
     }
 
     /// Depth
-    @objc open dynamic var depth: Double = defaultDepth {
+    @objc open dynamic var depth: Double = 1.0 {
         willSet {
-            guard depth != newValue else { return }
-            if internalAU?.isSetUp == true {
-                depthParameter?.value = AUValue(newValue)
+            if depth == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    depthParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.depth, value: newValue)
         }
     }
@@ -81,11 +78,12 @@ open class AKTremolo: AKNode, AKToggleable, AKComponent, AKInput {
     ///
     @objc public init(
         _ input: AKNode? = nil,
-        frequency: Double = defaultFrequency,
-        depth: Double = defaultDepth,
+        frequency: Double = 10,
+        depth: Double = 1.0,
         waveform: AKTable = AKTable(.positiveSine)
     ) {
 
+        self.waveform = waveform
         self.frequency = frequency
         self.depth = depth
 
@@ -97,7 +95,6 @@ open class AKTremolo: AKNode, AKToggleable, AKComponent, AKInput {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
             input?.connect(to: strongSelf)
@@ -114,6 +111,18 @@ open class AKTremolo: AKNode, AKToggleable, AKComponent, AKInput {
 
         frequencyParameter = tree["frequency"]
         depthParameter = tree["depth"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
 
         internalAU?.setParameterImmediately(.frequency, value: frequency)
         internalAU?.setParameterImmediately(.depth, value: depth)

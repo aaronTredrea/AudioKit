@@ -11,54 +11,65 @@ import AVFoundation
 public class AKTremoloAudioUnit: AKAudioUnitBase {
 
     func setParameter(_ address: AKTremoloParameter, value: Double) {
-        setParameterWithAddress(address.rawValue, value: Float(value))
+        setParameterWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     func setParameterImmediately(_ address: AKTremoloParameter, value: Double) {
-        setParameterImmediatelyWithAddress(address.rawValue, value: Float(value))
+        setParameterImmediatelyWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
-    var frequency: Double = AKTremolo.defaultFrequency {
+    var frequency: Double = 10.0 {
         didSet { setParameter(.frequency, value: frequency) }
     }
-
-    var depth: Double = AKTremolo.defaultDepth {
+    var depth: Double = 1.0 {
         didSet { setParameter(.depth, value: depth) }
     }
 
-    var rampDuration: Double = 0.0 {
-        didSet { setParameter(.rampDuration, value: rampDuration) }
+    var rampTime: Double = 0.0 {
+        didSet { setParameter(.rampTime, value: rampTime) }
     }
 
     public override func initDSP(withSampleRate sampleRate: Double,
-                                 channelCount count: AVAudioChannelCount) -> AKDSPRef {
+                                 channelCount count: AVAudioChannelCount) -> UnsafeMutableRawPointer! {
         return createTremoloDSP(Int32(count), sampleRate)
     }
 
     public override init(componentDescription: AudioComponentDescription,
-                         options: AudioComponentInstantiationOptions = []) throws {
+                  options: AudioComponentInstantiationOptions = []) throws {
         try super.init(componentDescription: componentDescription, options: options)
 
-        let frequency = AUParameter(
-            identifier: "frequency",
-            name: "Frequency (Hz)",
-            address: AKTremoloParameter.frequency.rawValue,
-            range: AKTremolo.frequencyRange,
-            unit: .hertz,
-            flags: .default)
-        let depth = AUParameter(
-            identifier: "depth",
-            name: "Depth",
-            address: AKTremoloParameter.depth.rawValue,
-            range: AKTremolo.depthRange,
-            unit: .generic,
-            flags: .default)
+        let flags: AudioUnitParameterOptions = [.flag_IsReadable, .flag_IsWritable, .flag_CanRamp]
 
-        setParameterTree(AUParameterTree(children: [frequency, depth]))
-        frequency.value = Float(AKTremolo.defaultFrequency)
-        depth.value = Float(AKTremolo.defaultDepth)
+        let frequency = AUParameterTree.createParameter(
+            withIdentifier: "frequency",
+            name: "Frequency (Hz)",
+            address: AUParameterAddress(0),
+            min: 0.0,
+            max: 100.0,
+            unit: .hertz,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        let depth = AUParameterTree.createParameter(
+            withIdentifier: "depth",
+            name: "Depth",
+            address: AUParameterAddress(1),
+            min: 0.0,
+            max: 1.0,
+            unit: .generic,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+
+        setParameterTree(AUParameterTree.createTree(withChildren: [frequency, depth]))
+        frequency.value = 10.0
+        depth.value = 1.0
     }
 
-    public override var canProcessInPlace: Bool { return true }
+    public override var canProcessInPlace: Bool { get { return true; }}
 
 }

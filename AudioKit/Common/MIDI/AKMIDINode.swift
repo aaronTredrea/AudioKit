@@ -34,7 +34,6 @@ open class AKMIDINode: AKNode, AKMIDIListener {
         internalNode = node
         super.init()
         avAudioNode = internalNode.avAudioNode
-        avAudioUnit = internalNode.avAudioUnit
       enableMIDI(name: midiOutputName ?? "Unnamed")
     }
 
@@ -49,12 +48,9 @@ open class AKMIDINode: AKNode, AKMIDIListener {
         CheckError(MIDIDestinationCreateWithBlock(midiClient, name as CFString, &midiIn) { packetList, _ in
             for e in packetList.pointee {
                 let event = AKMIDIEvent(packet: e)
-                guard event.data.count > 2 else {
-                    return
-                }
-                self.handleMIDI(data1: event.data[0],
-                                data2: event.data[1],
-                                data3: event.data[2])
+                self.handleMIDI(data1: MIDIByte(event.internalData[0]),
+                                data2: MIDIByte(event.internalData[1]),
+                                data3: MIDIByte(event.internalData[2]))
 
             }
         })
@@ -64,16 +60,15 @@ open class AKMIDINode: AKNode, AKMIDIListener {
 
     // Send MIDI data to the audio unit
     func handleMIDI(data1: MIDIByte, data2: MIDIByte, data3: MIDIByte) {
-        let status = AKMIDIStatus(byte: data1)
-        let channel = status?.channel
+        let status = Int(data1 >> 4)
         let noteNumber = MIDINoteNumber(data2)
         let velocity = MIDIVelocity(data3)
 
-        if status?.type == .noteOn && velocity > 0 {
-            internalNode.play(noteNumber: noteNumber, velocity: velocity, channel: channel ?? 0)
-        } else if status?.type == .noteOn && velocity == 0 {
+        if status == AKMIDIStatus.noteOn.rawValue && velocity > 0 {
+            internalNode.play(noteNumber: noteNumber, velocity: velocity)
+        } else if status == AKMIDIStatus.noteOn.rawValue && velocity == 0 {
             internalNode.stop(noteNumber: noteNumber)
-        } else if status?.type == .noteOff {
+        } else if status == AKMIDIStatus.noteOff.rawValue {
             internalNode.stop(noteNumber: noteNumber)
         }
     }
@@ -87,10 +82,9 @@ open class AKMIDINode: AKNode, AKMIDIListener {
     ///
     open func receivedMIDINoteOn(_ noteNumber: MIDINoteNumber,
                                  velocity: MIDIVelocity,
-                                 channel: MIDIChannel,
-                                 offset: MIDITimeStamp = 0) {
+                                 channel: MIDIChannel) {
         if velocity > 0 {
-            internalNode.play(noteNumber: noteNumber, velocity: velocity, channel: channel)
+            internalNode.play(noteNumber: noteNumber, velocity: velocity)
         } else {
             internalNode.stop(noteNumber: noteNumber)
         }

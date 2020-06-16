@@ -26,7 +26,7 @@ open class AKOperationEffect: AKNode, AKToggleable, AKComponent, AKInput {
         get {
             return (internalAU?.parameters as? [NSNumber]).flatMap {
                 $0.compactMap { $0.doubleValue }
-            } ?? []
+                } ?? []
         }
         set {
             internalAU?.parameters = newValue
@@ -40,18 +40,18 @@ open class AKOperationEffect: AKNode, AKToggleable, AKComponent, AKInput {
     /// Initialize the generator for stereo (2 channels)
     ///
     /// - Parameters:
-    ///   - input: AKNode to use for processing
-    ///   - channelCount: Only 2 channels are supported, but need to differentiate the initializer
-    ///   - operations: Array of operations [left, right]
+    ///   - input:            AKNode to use for processing
+    ///   - numberOfChannels: Only 2 channels are supported, but need to differentiate the initializer
+    ///   - operations:       Array of operations [left, right]
     ///
     public convenience init(_ input: AKNode?,
-                            channelCount: Int,
+                            numberOfChannels: Int,
                             operations: (AKStereoOperation, [AKOperation]) -> [AKOperation]) {
 
         let computedParameters = operations(AKStereoOperation.input, AKOperation.parameters)
         let left = computedParameters[0]
 
-        if channelCount == 2 {
+        if numberOfChannels == 2 {
             let right = computedParameters[1]
             self.init(input, sporth: "\(right.sporth) \(left.sporth)")
         } else {
@@ -102,7 +102,6 @@ open class AKOperationEffect: AKNode, AKToggleable, AKComponent, AKInput {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
 

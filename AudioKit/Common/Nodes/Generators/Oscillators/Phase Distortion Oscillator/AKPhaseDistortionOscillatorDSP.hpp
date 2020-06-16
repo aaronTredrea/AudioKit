@@ -16,14 +16,14 @@ typedef NS_ENUM(AUParameterAddress, AKPhaseDistortionOscillatorParameter) {
     AKPhaseDistortionOscillatorParameterPhaseDistortion,
     AKPhaseDistortionOscillatorParameterDetuningOffset,
     AKPhaseDistortionOscillatorParameterDetuningMultiplier,
-    AKPhaseDistortionOscillatorParameterRampDuration
+    AKPhaseDistortionOscillatorParameterRampTime
 };
 
 #import "AKLinearParameterRamp.hpp"  // have to put this here to get it included in umbrella header
 
 #ifndef __cplusplus
 
-AKDSPRef createPhaseDistortionOscillatorDSP(int channelCount, double sampleRate);
+void* createPhaseDistortionOscillatorDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -31,12 +31,12 @@ AKDSPRef createPhaseDistortionOscillatorDSP(int channelCount, double sampleRate)
 
 class AKPhaseDistortionOscillatorDSP : public AKSoundpipeDSPBase {
 
-    sp_pdhalf *pdhalf;
-    sp_tabread *tabread;
-    sp_phasor *phasor;
+    sp_pdhalf *_pdhalf;
+    sp_tabread *_tab;
+    sp_phasor *_phs;
 
-    sp_ftbl *ftbl;
-    UInt32 ftbl_size = 4096;
+    sp_ftbl *_ftbl;
+    UInt32 _ftbl_size = 4096;
 
 private:
     AKLinearParameterRamp frequencyRamp;
@@ -59,7 +59,7 @@ public:
         detuningMultiplierRamp.setDurationInSamples(10000);
     }
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     void setParameter(AUParameterAddress address, float value, bool immediate) override {
         switch (address) {
             case AKPhaseDistortionOscillatorParameterFrequency:
@@ -77,17 +77,17 @@ public:
             case AKPhaseDistortionOscillatorParameterDetuningMultiplier:
                 detuningMultiplierRamp.setTarget(value, immediate);
                 break;
-            case AKPhaseDistortionOscillatorParameterRampDuration:
-                frequencyRamp.setRampDuration(value, sampleRate);
-                amplitudeRamp.setRampDuration(value, sampleRate);
-                phaseDistortionRamp.setRampDuration(value, sampleRate);
-                detuningOffsetRamp.setRampDuration(value, sampleRate);
-                detuningMultiplierRamp.setRampDuration(value, sampleRate);
+            case AKPhaseDistortionOscillatorParameterRampTime:
+                frequencyRamp.setRampTime(value, _sampleRate);
+                amplitudeRamp.setRampTime(value, _sampleRate);
+                phaseDistortionRamp.setRampTime(value, _sampleRate);
+                detuningOffsetRamp.setRampTime(value, _sampleRate);
+                detuningMultiplierRamp.setRampTime(value, _sampleRate);
                 break;
         }
     }
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     float getParameter(AUParameterAddress address) override {
         switch (address) {
             case AKPhaseDistortionOscillatorParameterFrequency:
@@ -100,39 +100,39 @@ public:
                 return detuningOffsetRamp.getTarget();
             case AKPhaseDistortionOscillatorParameterDetuningMultiplier:
                 return detuningMultiplierRamp.getTarget();
-            case AKPhaseDistortionOscillatorParameterRampDuration:
-                return frequencyRamp.getRampDuration(sampleRate);
+            case AKPhaseDistortionOscillatorParameterRampTime:
+                return frequencyRamp.getRampTime(_sampleRate);
         }
         return 0;
     }
 
-    void init(int channelCount, double sampleRate) override {
-        AKSoundpipeDSPBase::init(channelCount, sampleRate);
-        isStarted = false;
-        
-        sp_pdhalf_create(&pdhalf);
-        sp_tabread_create(&tabread);
-        sp_tabread_init(sp, tabread, ftbl, 1);
-        sp_phasor_create(&phasor);
+    void init(int _channels, double _sampleRate) override {
+        AKSoundpipeDSPBase::init(_channels, _sampleRate);
 
-        sp_pdhalf_init(sp, pdhalf);
-        sp_phasor_init(sp, phasor, 0);
+        sp_pdhalf_create(&_pdhalf);
+        sp_tabread_create(&_tab);
+        sp_tabread_init(_sp, _tab, _ftbl, 1);
+        sp_phasor_create(&_phs);
 
-        phasor->freq = 440;
-        pdhalf->amount = 0;
+        sp_pdhalf_init(_sp, _pdhalf);
+        sp_phasor_init(_sp, _phs, 0);
+
+        _phs->freq = 440;
+        _pdhalf->amount = 0;
    }
 
-    void deinit() override {
-        sp_pdhalf_destroy(&pdhalf);
+    void destroy() {
+        sp_pdhalf_destroy(&_pdhalf);
+        AKSoundpipeDSPBase::destroy();
     }
 
     void setupWaveform(uint32_t size) override {
-        ftbl_size = size;
-        sp_ftbl_create(sp, &ftbl, ftbl_size);
+        _ftbl_size = size;
+        sp_ftbl_create(_sp, &_ftbl, _ftbl_size);
     }
 
     void setWaveformValue(uint32_t index, float value) override {
-        ftbl->tbl[index] = value;
+        _ftbl->tbl[index] = value;
     }
 
     void process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) override {
@@ -142,33 +142,33 @@ public:
 
             // do ramping every 8 samples
             if ((frameOffset & 0x7) == 0) {
-                frequencyRamp.advanceTo(now + frameOffset);
-                amplitudeRamp.advanceTo(now + frameOffset);
-                phaseDistortionRamp.advanceTo(now + frameOffset);
-                detuningOffsetRamp.advanceTo(now + frameOffset);
-                detuningMultiplierRamp.advanceTo(now + frameOffset);
+                frequencyRamp.advanceTo(_now + frameOffset);
+                amplitudeRamp.advanceTo(_now + frameOffset);
+                phaseDistortionRamp.advanceTo(_now + frameOffset);
+                detuningOffsetRamp.advanceTo(_now + frameOffset);
+                detuningMultiplierRamp.advanceTo(_now + frameOffset);
             }
             float frequency = frequencyRamp.getValue();
             float amplitude = amplitudeRamp.getValue();
             float phaseDistortion = phaseDistortionRamp.getValue();
             float detuningOffset = detuningOffsetRamp.getValue();
             float detuningMultiplier = detuningMultiplierRamp.getValue();
-            phasor->freq = frequency * detuningMultiplier + detuningOffset;
-            pdhalf->amount = phaseDistortion;
+            _phs->freq = frequency * detuningMultiplier + detuningOffset;
+            _pdhalf->amount = phaseDistortion;
 
             float temp = 0;
             float pd = 0;
             float ph = 0;
 
-            for (int channel = 0; channel < channelCount; ++channel) {
-                float *out = (float *)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+            for (int channel = 0; channel < _nChannels; ++channel) {
+                float* out = (float *)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
 
-                if (isStarted) {
+                if (_playing) {
                     if (channel == 0) {
-                        sp_phasor_compute(sp, phasor, NULL, &ph);
-                        sp_pdhalf_compute(sp, pdhalf, &ph, &pd);
-                        tabread->index = pd;
-                        sp_tabread_compute(sp, tabread, NULL, &temp);
+                        sp_phasor_compute(_sp, _phs, NULL, &ph);
+                        sp_pdhalf_compute(_sp, _pdhalf, &ph, &pd);
+                        _tab->index = pd;
+                        sp_tabread_compute(_sp, _tab, NULL, &temp);
 
                     }
                     *out = temp * amplitude;

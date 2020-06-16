@@ -39,20 +39,12 @@
     return _kernel.trackedFrequency;
 }
 
-- (void)setHopSize:(UInt32)hopSize {
-    _kernel.hopSize = hopSize;
-}
-- (void)setPeakCount:(UInt32)peakCount {
-    _kernel.peakCount = peakCount;
-}
-
-
 - (void)createParameters {
 
     standardSetup(FrequencyTracker)
 
     // Create the parameter tree.
-    _parameterTree = [AUParameterTree treeWithChildren:@[]];
+    _parameterTree = [AUParameterTree createTreeWithChildren:@[]];
 
     parameterTreeBlock(FrequencyTracker)
 }

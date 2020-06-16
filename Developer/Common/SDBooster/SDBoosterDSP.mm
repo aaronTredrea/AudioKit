@@ -36,9 +36,9 @@ void SDBoosterDSP::setParameter(AUParameterAddress address, AUValue value, bool 
         case SDBoosterParameterRightGain:
             _private->rightGainRamp.setTarget(value, immediate);
             break;
-        case SDBoosterParameterRampDuration:
-            _private->leftGainRamp.setRampDuration(value, sampleRate);
-            _private->rightGainRamp.setRampDuration(value, sampleRate);
+        case SDBoosterParameterRampTime:
+            _private->leftGainRamp.setRampTime(value, _sampleRate);
+            _private->rightGainRamp.setRampTime(value, _sampleRate);
             break;
     }
 }
@@ -50,8 +50,8 @@ float SDBoosterDSP::getParameter(AUParameterAddress address) {
             return _private->leftGainRamp.getTarget();
         case SDBoosterParameterRightGain:
             return _private->rightGainRamp.getTarget();
-        case SDBoosterParameterRampDuration:
-            return _private->leftGainRamp.getRampDuration(sampleRate);
+        case SDBoosterParameterRampTime:
+            return _private->leftGainRamp.getRampTime(_sampleRate);
     }
     return 0;
 }
@@ -62,14 +62,14 @@ void SDBoosterDSP::process(AUAudioFrameCount frameCount, AUAudioFrameCount buffe
         int frameOffset = int(frameIndex + bufferOffset);
         // do ramping every 8 samples
         if ((frameOffset & 0x7) == 0) {
-            _private->leftGainRamp.advanceTo(now + frameOffset);
-            _private->rightGainRamp.advanceTo(now + frameOffset);
+            _private->leftGainRamp.advanceTo(_now + frameOffset);
+            _private->rightGainRamp.advanceTo(_now + frameOffset);
         }
         // do actual signal processing
         // After all this scaffolding, the only thing we are doing is scaling the input
-        for (int channel = 0; channel < channelCount; ++channel) {
-            float* in  = (float*)inBufferListPtr->mBuffers[channel].mData  + frameOffset;
-            float* out = (float*)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+        for (int channel = 0; channel < _nChannels; ++channel) {
+            float* in  = (float*)_inBufferListPtr->mBuffers[channel].mData  + frameOffset;
+            float* out = (float*)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
             if (channel == 0) {
                 *out = *in * _private->leftGainRamp.getValue();
             } else {

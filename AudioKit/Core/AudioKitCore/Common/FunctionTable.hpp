@@ -10,19 +10,21 @@
 
 namespace AudioKitCore
 {
-    #define DEFAULT_WAVETABLE_SIZE 256
 
-    /// FunctionTable represents a simple one-dimensional table of float values,
-    /// addressable by a normalized fractional index, [0.0, 1.0), with or without wraparound.
-    /// Linear interpolation is used to interpolate values between available samples.
-    ///
-    /// Cyclic (wraparound) addressing is useful for creating simple oscillators. In such
-    /// cases, the table typically contains one or a few cycles of a periodic function.
-    /// See class FunctionTableOscillator.
-    ///
-    /// Bounded addressing is useful for wave-shaping and fast function-approximation using
-    /// tabulated functions. In such applications, the table contains function values over
-    /// some bounded domain. See class AKWaveShaper.
+    // Class FunctionTable represents a simple one-dimensional table of float values,
+    // addressable by a normalized fractional index, [0.0, 1.0), with or without wraparound.
+    // Linear interpolation is used to interpolate values between available samples.
+    
+    // Cyclic (wraparound) addressing is useful for creating simple oscillators. In such
+    // cases, the table typically contains one or a few cycles of a periodic function.
+    // See class FunctionTableOscillator.
+    
+    // Bounded addressing is useful for wave-shaping and fast function-approximation using
+    // tabulated functions. In such applications, the table contains function values over
+    // some bounded domain. See class AKWaveShaper.
+    
+    #define DEFAULT_WAVETABLE_SIZE 256
+    
     struct FunctionTable
     {
         float *pWaveTable;
@@ -38,8 +40,6 @@ namespace AudioKitCore
         void triangle(float amplitude=1.0f);
         void sawtooth(float amplitude=1.0f);
         void sinusoid(float amplitude=1.0f);
-        void hammond(float amplitude=1.0f);
-        void square(float amplitude=1.0f, float dutyCycle=0.5f);
         
         inline float interp_cyclic(float phase)
         {
@@ -56,17 +56,16 @@ namespace AudioKitCore
             return (float)((1.0 - f) * si + f * sj);
         }
         
-        // functions for use by class AKWaveShaper (see comments in .cpp file)
-        void linearCurve(float gain = 1.0f);
-        void exponentialCurve(float left, float right);
-        void powerCurve(float exponent);
+        // functions for use by class AKWaveShaper (see comments in .mm file)
+        void exponentialRise(float left, float right);
+        void exponentialFall(float left, float right);
         
         inline float interp_bounded(float phase)
         {
             if (phase < 0) return pWaveTable[0];
             if (phase >= 1.0) return pWaveTable[nTableSize-1];
             
-            float readIndex = phase * (nTableSize - 1);
+            float readIndex = phase * nTableSize;
             int ri = int(readIndex);
             float f = readIndex - ri;
             int rj = ri + 1; if (rj >= nTableSize) rj = nTableSize - 1;
@@ -77,11 +76,11 @@ namespace AudioKitCore
         }
     };
     
-    /// FunctionTableOscillator implements a simple wavetable-based oscillator. Small table sizes (as small
-    /// as just 2 samples for triangle-wave) are useful for implementing LFOs using the init* functions.
-    /// For audio-frequency oscillators, use larger tables, and ensure that your tabulated waveform is
-    /// low-pass filtered. Power-of-two table sizes (e.g. 1024, 2048) are ideal: Perform a forward FFT,
-    /// zero out high-frequency coefficients, then inverse FFT.
+    // FunctionTableOscillator implements a simple wavetable-based oscillator. Small table sizes (as small
+    // as just 2 samples for triangle-wave) are useful for implementing LFOs using the init* functions.
+    // For audio-frequency oscillators, use larger tables, and ensure that your tabulated waveform is
+    // low-pass filtered. Power-of-two table sizes (e.g. 1024, 2048) are ideal: Perform a forward FFT,
+    // zero out high-frequency coefficients, then inverse FFT.
     struct FunctionTableOscillator
     {
         double sampleRateHz;
@@ -107,7 +106,7 @@ namespace AudioKitCore
         // For stereo modulation, we need to get two samples at a time: an "in-phase"
         // sample which is the same as what getSample() above would return, plus a
         // "quadrature" sample which is 90 degrees out-of-phase with the first one.
-        inline void getSamples(float *pInPhase, float *pQuadrature)
+        inline void getSamples(float* pInPhase, float* pQuadrature)
         {
             *pInPhase = waveTable.interp_cyclic(phase);
             *pQuadrature = waveTable.interp_cyclic(phase + 0.25f);
@@ -116,8 +115,8 @@ namespace AudioKitCore
         }
     };
     
-    /// WaveShaper wraps a FunctionTable and provides saved scale and offset parameters for both
-    /// input (x) and output (y) values.
+    // WaveShaper wraps a FunctionTable and provides saved scale and offset parameters for both
+    // input (x) and output (y) values.
     struct WaveShaper
     {
         FunctionTable waveTable;
@@ -128,7 +127,7 @@ namespace AudioKitCore
         ~WaveShaper() { deinit(); }
         void deinit() { waveTable.deinit(); }
         
-        void init(int tableLength = DEFAULT_WAVETABLE_SIZE);
+        void init(int tableLength=DEFAULT_WAVETABLE_SIZE) { waveTable.init(tableLength); }
         
         inline float interp(float x)
         {

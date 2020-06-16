@@ -29,13 +29,13 @@
     }
 
     /// Initialize the microphone
-    public override init() {
+    override public init() {
         super.init()
-        self.avAudioNode = mixer
-
         #if !os(tvOS)
-        AKSettings.audioInputEnabled = true
-        AudioKit.engine.inputNode.connect(to: self.avAudioNode)
+            self.avAudioNode = mixer
+            AKSettings.audioInputEnabled = true
+            AudioKit.engine.attach(mixer)
+            AudioKit.engine.connect(AudioKit.engine.inputNode, to: self.avAudioNode, format: nil)
         #endif
     }
 

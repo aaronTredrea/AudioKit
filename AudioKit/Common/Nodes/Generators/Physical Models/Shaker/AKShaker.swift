@@ -83,28 +83,39 @@ public enum AKShakerType: UInt8 {
 ///
 open class AKShaker: AKNode, AKToggleable, AKComponent {
     /// Four letter unique description of the node
-    public static let ComponentDescription = AudioComponentDescription(instrument: "shak")
+    public static let ComponentDescription = AudioComponentDescription(generator: "shak")
     public typealias AKAudioUnitType = AKShakerAudioUnit
-
     // MARK: - Properties
 
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var amplitudeParameter: AUParameter?
+
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
+        willSet {
+            internalAU?.rampTime = newValue
+        }
+    }
 
     /// Type of shaker to use
     open var type: AKShakerType = .maraca {
         willSet {
-            guard type != newValue else { return }
-            internalAU?.type = Double(newValue.rawValue)
+            if type != newValue {
+                internalAU?.type = type.rawValue
+            }
         }
     }
 
     /// Amplitude
     @objc open dynamic var amplitude: Double = 0.5 {
         willSet {
-            guard amplitude != newValue else { return }
-            amplitudeParameter?.value = AUValue(newValue)
+            if amplitude != newValue {
+                if let existingToken = token {
+                    amplitudeParameter?.setValue(Float(newValue), originator: existingToken)
+                }
+            }
         }
     }
 
@@ -135,7 +146,6 @@ open class AKShaker: AKNode, AKToggleable, AKComponent {
         super.init()
         AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self] avAudioUnit in
 
-            self?.avAudioUnit = avAudioUnit
             self?.avAudioNode = avAudioUnit
             self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
         }
@@ -146,8 +156,20 @@ open class AKShaker: AKNode, AKToggleable, AKComponent {
         }
 
         amplitudeParameter = tree["amplitude"]
-        internalAU?.type = Double(type.rawValue)
-        internalAU?.amplitude = Double(amplitude)
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
+        internalAU?.type = type.rawValue
+        internalAU?.amplitude = Float(amplitude)
     }
 
     /// Trigger the sound with an optional set of parameters

@@ -9,14 +9,14 @@
 #include "AKDripDSP.hpp"
 #import "AKLinearParameterRamp.hpp"
 
-extern "C" AKDSPRef createDripDSP(int channelCount, double sampleRate) {
-    AKDripDSP *dsp = new AKDripDSP();
-    dsp->init(channelCount, sampleRate);
+extern "C" void* createDripDSP(int nChannels, double sampleRate) {
+    AKDripDSP* dsp = new AKDripDSP();
+    dsp->init(nChannels, sampleRate);
     return dsp;
 }
 
-struct AKDripDSP::InternalData {
-    sp_drip *drip;
+struct AKDripDSP::_Internal {
+    sp_drip *_drip;
     AKLinearParameterRamp intensityRamp;
     AKLinearParameterRamp dampingFactorRamp;
     AKLinearParameterRamp energyReturnRamp;
@@ -26,55 +26,55 @@ struct AKDripDSP::InternalData {
     AKLinearParameterRamp amplitudeRamp;
 };
 
-AKDripDSP::AKDripDSP() : data(new InternalData) {
-    data->intensityRamp.setTarget(defaultIntensity, true);
-    data->intensityRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->dampingFactorRamp.setTarget(defaultDampingFactor, true);
-    data->dampingFactorRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->energyReturnRamp.setTarget(defaultEnergyReturn, true);
-    data->energyReturnRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->mainResonantFrequencyRamp.setTarget(defaultMainResonantFrequency, true);
-    data->mainResonantFrequencyRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->firstResonantFrequencyRamp.setTarget(defaultFirstResonantFrequency, true);
-    data->firstResonantFrequencyRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->secondResonantFrequencyRamp.setTarget(defaultSecondResonantFrequency, true);
-    data->secondResonantFrequencyRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->amplitudeRamp.setTarget(defaultAmplitude, true);
-    data->amplitudeRamp.setDurationInSamples(defaultRampDurationSamples);
+AKDripDSP::AKDripDSP() : _private(new _Internal) {
+    _private->intensityRamp.setTarget(defaultIntensity, true);
+    _private->intensityRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->dampingFactorRamp.setTarget(defaultDampingFactor, true);
+    _private->dampingFactorRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->energyReturnRamp.setTarget(defaultEnergyReturn, true);
+    _private->energyReturnRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->mainResonantFrequencyRamp.setTarget(defaultMainResonantFrequency, true);
+    _private->mainResonantFrequencyRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->firstResonantFrequencyRamp.setTarget(defaultFirstResonantFrequency, true);
+    _private->firstResonantFrequencyRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->secondResonantFrequencyRamp.setTarget(defaultSecondResonantFrequency, true);
+    _private->secondResonantFrequencyRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->amplitudeRamp.setTarget(defaultAmplitude, true);
+    _private->amplitudeRamp.setDurationInSamples(defaultRampTimeSamples);
 }
 
 // Uses the ParameterAddress as a key
 void AKDripDSP::setParameter(AUParameterAddress address, AUValue value, bool immediate) {
     switch (address) {
         case AKDripParameterIntensity:
-            data->intensityRamp.setTarget(clamp(value, intensityLowerBound, intensityUpperBound), immediate);
+            _private->intensityRamp.setTarget(clamp(value, intensityLowerBound, intensityUpperBound), immediate);
             break;
         case AKDripParameterDampingFactor:
-            data->dampingFactorRamp.setTarget(clamp(value, dampingFactorLowerBound, dampingFactorUpperBound), immediate);
+            _private->dampingFactorRamp.setTarget(clamp(value, dampingFactorLowerBound, dampingFactorUpperBound), immediate);
             break;
         case AKDripParameterEnergyReturn:
-            data->energyReturnRamp.setTarget(clamp(value, energyReturnLowerBound, energyReturnUpperBound), immediate);
+            _private->energyReturnRamp.setTarget(clamp(value, energyReturnLowerBound, energyReturnUpperBound), immediate);
             break;
         case AKDripParameterMainResonantFrequency:
-            data->mainResonantFrequencyRamp.setTarget(clamp(value, mainResonantFrequencyLowerBound, mainResonantFrequencyUpperBound), immediate);
+            _private->mainResonantFrequencyRamp.setTarget(clamp(value, mainResonantFrequencyLowerBound, mainResonantFrequencyUpperBound), immediate);
             break;
         case AKDripParameterFirstResonantFrequency:
-            data->firstResonantFrequencyRamp.setTarget(clamp(value, firstResonantFrequencyLowerBound, firstResonantFrequencyUpperBound), immediate);
+            _private->firstResonantFrequencyRamp.setTarget(clamp(value, firstResonantFrequencyLowerBound, firstResonantFrequencyUpperBound), immediate);
             break;
         case AKDripParameterSecondResonantFrequency:
-            data->secondResonantFrequencyRamp.setTarget(clamp(value, secondResonantFrequencyLowerBound, secondResonantFrequencyUpperBound), immediate);
+            _private->secondResonantFrequencyRamp.setTarget(clamp(value, secondResonantFrequencyLowerBound, secondResonantFrequencyUpperBound), immediate);
             break;
         case AKDripParameterAmplitude:
-            data->amplitudeRamp.setTarget(clamp(value, amplitudeLowerBound, amplitudeUpperBound), immediate);
+            _private->amplitudeRamp.setTarget(clamp(value, amplitudeLowerBound, amplitudeUpperBound), immediate);
             break;
-        case AKDripParameterRampDuration:
-            data->intensityRamp.setRampDuration(value, sampleRate);
-            data->dampingFactorRamp.setRampDuration(value, sampleRate);
-            data->energyReturnRamp.setRampDuration(value, sampleRate);
-            data->mainResonantFrequencyRamp.setRampDuration(value, sampleRate);
-            data->firstResonantFrequencyRamp.setRampDuration(value, sampleRate);
-            data->secondResonantFrequencyRamp.setRampDuration(value, sampleRate);
-            data->amplitudeRamp.setRampDuration(value, sampleRate);
+        case AKDripParameterRampTime:
+            _private->intensityRamp.setRampTime(value, _sampleRate);
+            _private->dampingFactorRamp.setRampTime(value, _sampleRate);
+            _private->energyReturnRamp.setRampTime(value, _sampleRate);
+            _private->mainResonantFrequencyRamp.setRampTime(value, _sampleRate);
+            _private->firstResonantFrequencyRamp.setRampTime(value, _sampleRate);
+            _private->secondResonantFrequencyRamp.setRampTime(value, _sampleRate);
+            _private->amplitudeRamp.setRampTime(value, _sampleRate);
             break;
     }
 }
@@ -83,40 +83,41 @@ void AKDripDSP::setParameter(AUParameterAddress address, AUValue value, bool imm
 float AKDripDSP::getParameter(uint64_t address) {
     switch (address) {
         case AKDripParameterIntensity:
-            return data->intensityRamp.getTarget();
+            return _private->intensityRamp.getTarget();
         case AKDripParameterDampingFactor:
-            return data->dampingFactorRamp.getTarget();
+            return _private->dampingFactorRamp.getTarget();
         case AKDripParameterEnergyReturn:
-            return data->energyReturnRamp.getTarget();
+            return _private->energyReturnRamp.getTarget();
         case AKDripParameterMainResonantFrequency:
-            return data->mainResonantFrequencyRamp.getTarget();
+            return _private->mainResonantFrequencyRamp.getTarget();
         case AKDripParameterFirstResonantFrequency:
-            return data->firstResonantFrequencyRamp.getTarget();
+            return _private->firstResonantFrequencyRamp.getTarget();
         case AKDripParameterSecondResonantFrequency:
-            return data->secondResonantFrequencyRamp.getTarget();
+            return _private->secondResonantFrequencyRamp.getTarget();
         case AKDripParameterAmplitude:
-            return data->amplitudeRamp.getTarget();
-        case AKDripParameterRampDuration:
-            return data->intensityRamp.getRampDuration(sampleRate);
+            return _private->amplitudeRamp.getTarget();
+        case AKDripParameterRampTime:
+            return _private->intensityRamp.getRampTime(_sampleRate);
     }
     return 0;
 }
 
-void AKDripDSP::init(int channelCount, double sampleRate) {
-    AKSoundpipeDSPBase::init(channelCount, sampleRate);
-    sp_drip_create(&data->drip);
-    sp_drip_init(sp, data->drip, 0.9);
-    data->drip->num_tubes = defaultIntensity;
-    data->drip->damp = defaultDampingFactor;
-    data->drip->shake_max = defaultEnergyReturn;
-    data->drip->freq = defaultMainResonantFrequency;
-    data->drip->freq1 = defaultFirstResonantFrequency;
-    data->drip->freq2 = defaultSecondResonantFrequency;
-    data->drip->amp = defaultAmplitude;
+void AKDripDSP::init(int _channels, double _sampleRate) {
+    AKSoundpipeDSPBase::init(_channels, _sampleRate);
+    sp_drip_create(&_private->_drip);
+    sp_drip_init(_sp, _private->_drip, 0.9);
+    _private->_drip->num_tubes = defaultIntensity;
+    _private->_drip->damp = defaultDampingFactor;
+    _private->_drip->shake_max = defaultEnergyReturn;
+    _private->_drip->freq = defaultMainResonantFrequency;
+    _private->_drip->freq1 = defaultFirstResonantFrequency;
+    _private->_drip->freq2 = defaultSecondResonantFrequency;
+    _private->_drip->amp = defaultAmplitude;
 }
 
-void AKDripDSP::deinit() {
-    sp_drip_destroy(&data->drip);
+void AKDripDSP::destroy() {
+    sp_drip_destroy(&_private->_drip);
+    AKSoundpipeDSPBase::destroy();
 }
 
 void AKDripDSP::trigger() {
@@ -130,31 +131,30 @@ void AKDripDSP::process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOf
 
         // do ramping every 8 samples
         if ((frameOffset & 0x7) == 0) {
-            data->intensityRamp.advanceTo(now + frameOffset);
-            data->dampingFactorRamp.advanceTo(now + frameOffset);
-            data->energyReturnRamp.advanceTo(now + frameOffset);
-            data->mainResonantFrequencyRamp.advanceTo(now + frameOffset);
-            data->firstResonantFrequencyRamp.advanceTo(now + frameOffset);
-            data->secondResonantFrequencyRamp.advanceTo(now + frameOffset);
-            data->amplitudeRamp.advanceTo(now + frameOffset);
+            _private->intensityRamp.advanceTo(_now + frameOffset);
+            _private->dampingFactorRamp.advanceTo(_now + frameOffset);
+            _private->energyReturnRamp.advanceTo(_now + frameOffset);
+            _private->mainResonantFrequencyRamp.advanceTo(_now + frameOffset);
+            _private->firstResonantFrequencyRamp.advanceTo(_now + frameOffset);
+            _private->secondResonantFrequencyRamp.advanceTo(_now + frameOffset);
+            _private->amplitudeRamp.advanceTo(_now + frameOffset);
         }
 
-        data->drip->num_tubes = data->intensityRamp.getValue();
-        data->drip->damp = data->dampingFactorRamp.getValue();
-        data->drip->shake_max = data->energyReturnRamp.getValue();
-        data->drip->freq = data->mainResonantFrequencyRamp.getValue();
-        data->drip->freq1 = data->firstResonantFrequencyRamp.getValue();
-        data->drip->freq2 = data->secondResonantFrequencyRamp.getValue();
-        data->drip->amp = data->amplitudeRamp.getValue();
+        _private->_drip->num_tubes = _private->intensityRamp.getValue();
+        _private->_drip->damp = _private->dampingFactorRamp.getValue();
+        _private->_drip->shake_max = _private->energyReturnRamp.getValue();
+        _private->_drip->freq = _private->mainResonantFrequencyRamp.getValue();
+        _private->_drip->freq1 = _private->firstResonantFrequencyRamp.getValue();
+        _private->_drip->freq2 = _private->secondResonantFrequencyRamp.getValue();
+        _private->_drip->amp = _private->amplitudeRamp.getValue();
 
         float temp = 0;
-        for (int channel = 0; channel < channelCount; ++channel) {
-            float *out = (float *)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+        for (int channel = 0; channel < _nChannels; ++channel) {
+            float* out = (float *)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
 
-            if (isStarted) {
+            if (_playing) {
                 if (channel == 0) {
-                    sp_drip_compute(sp, data->drip, &internalTrigger, &temp);
-                    internalTrigger = 0.0;
+                    sp_drip_compute(_sp, _private->_drip, &internalTrigger, &temp);
                 }
                 *out = temp;
             } else {

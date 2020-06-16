@@ -11,11 +11,11 @@ import AVFoundation
 public class AKStringResonatorAudioUnit: AKAudioUnitBase {
 
     func setParameter(_ address: AKStringResonatorParameter, value: Double) {
-        setParameterWithAddress(address.rawValue, value: Float(value))
+        setParameterWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     func setParameterImmediately(_ address: AKStringResonatorParameter, value: Double) {
-        setParameterImmediatelyWithAddress(address.rawValue, value: Float(value))
+        setParameterImmediatelyWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     var fundamentalFrequency: Double = AKStringResonator.defaultFundamentalFrequency {
@@ -26,39 +26,51 @@ public class AKStringResonatorAudioUnit: AKAudioUnitBase {
         didSet { setParameter(.feedback, value: feedback) }
     }
 
-    var rampDuration: Double = 0.0 {
-        didSet { setParameter(.rampDuration, value: rampDuration) }
+    var rampTime: Double = 0.0 {
+        didSet { setParameter(.rampTime, value: rampTime) }
     }
 
     public override func initDSP(withSampleRate sampleRate: Double,
-                                 channelCount count: AVAudioChannelCount) -> AKDSPRef {
+                                 channelCount count: AVAudioChannelCount) -> UnsafeMutableRawPointer! {
         return createStringResonatorDSP(Int32(count), sampleRate)
     }
 
     public override init(componentDescription: AudioComponentDescription,
-                         options: AudioComponentInstantiationOptions = []) throws {
+                  options: AudioComponentInstantiationOptions = []) throws {
         try super.init(componentDescription: componentDescription, options: options)
 
-        let fundamentalFrequency = AUParameter(
-            identifier: "fundamentalFrequency",
-            name: "Fundamental Frequency (Hz)",
-            address: AKStringResonatorParameter.fundamentalFrequency.rawValue,
-            range: AKStringResonator.fundamentalFrequencyRange,
-            unit: .hertz,
-            flags: .default)
-        let feedback = AUParameter(
-            identifier: "feedback",
-            name: "Feedback (%)",
-            address: AKStringResonatorParameter.feedback.rawValue,
-            range: AKStringResonator.feedbackRange,
-            unit: .generic,
-            flags: .default)
+        let flags: AudioUnitParameterOptions = [.flag_IsReadable, .flag_IsWritable, .flag_CanRamp]
 
-        setParameterTree(AUParameterTree(children: [fundamentalFrequency, feedback]))
+        let fundamentalFrequency = AUParameterTree.createParameter(
+            withIdentifier: "fundamentalFrequency",
+            name: "Fundamental Frequency (Hz)",
+            address: AUParameterAddress(0),
+            min: Float(AKStringResonator.fundamentalFrequencyRange.lowerBound),
+            max: Float(AKStringResonator.fundamentalFrequencyRange.upperBound),
+            unit: .hertz,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        let feedback = AUParameterTree.createParameter(
+            withIdentifier: "feedback",
+            name: "Feedback (%)",
+            address: AUParameterAddress(1),
+            min: Float(AKStringResonator.feedbackRange.lowerBound),
+            max: Float(AKStringResonator.feedbackRange.upperBound),
+            unit: .generic,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+
+        setParameterTree(AUParameterTree.createTree(withChildren: [fundamentalFrequency, feedback]))
         fundamentalFrequency.value = Float(AKStringResonator.defaultFundamentalFrequency)
         feedback.value = Float(AKStringResonator.defaultFeedback)
     }
 
-    public override var canProcessInPlace: Bool { return true }
+    public override var canProcessInPlace: Bool { get { return true; }}
 
 }

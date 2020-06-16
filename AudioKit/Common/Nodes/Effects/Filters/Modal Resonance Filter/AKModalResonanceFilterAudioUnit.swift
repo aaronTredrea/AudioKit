@@ -11,11 +11,11 @@ import AVFoundation
 public class AKModalResonanceFilterAudioUnit: AKAudioUnitBase {
 
     func setParameter(_ address: AKModalResonanceFilterParameter, value: Double) {
-        setParameterWithAddress(address.rawValue, value: Float(value))
+        setParameterWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     func setParameterImmediately(_ address: AKModalResonanceFilterParameter, value: Double) {
-        setParameterImmediatelyWithAddress(address.rawValue, value: Float(value))
+        setParameterImmediatelyWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     var frequency: Double = AKModalResonanceFilter.defaultFrequency {
@@ -26,39 +26,51 @@ public class AKModalResonanceFilterAudioUnit: AKAudioUnitBase {
         didSet { setParameter(.qualityFactor, value: qualityFactor) }
     }
 
-    var rampDuration: Double = 0.0 {
-        didSet { setParameter(.rampDuration, value: rampDuration) }
+    var rampTime: Double = 0.0 {
+        didSet { setParameter(.rampTime, value: rampTime) }
     }
 
     public override func initDSP(withSampleRate sampleRate: Double,
-                                 channelCount count: AVAudioChannelCount) -> AKDSPRef {
+                                 channelCount count: AVAudioChannelCount) -> UnsafeMutableRawPointer! {
         return createModalResonanceFilterDSP(Int32(count), sampleRate)
     }
 
     public override init(componentDescription: AudioComponentDescription,
-                         options: AudioComponentInstantiationOptions = []) throws {
+                  options: AudioComponentInstantiationOptions = []) throws {
         try super.init(componentDescription: componentDescription, options: options)
 
-        let frequency = AUParameter(
-            identifier: "frequency",
-            name: "Resonant Frequency (Hz)",
-            address: AKModalResonanceFilterParameter.frequency.rawValue,
-            range: AKModalResonanceFilter.frequencyRange,
-            unit: .hertz,
-            flags: .default)
-        let qualityFactor = AUParameter(
-            identifier: "qualityFactor",
-            name: "Quality Factor",
-            address: AKModalResonanceFilterParameter.qualityFactor.rawValue,
-            range: AKModalResonanceFilter.qualityFactorRange,
-            unit: .generic,
-            flags: .default)
+        let flags: AudioUnitParameterOptions = [.flag_IsReadable, .flag_IsWritable, .flag_CanRamp]
 
-        setParameterTree(AUParameterTree(children: [frequency, qualityFactor]))
+        let frequency = AUParameterTree.createParameter(
+            withIdentifier: "frequency",
+            name: "Resonant Frequency (Hz)",
+            address: AUParameterAddress(0),
+            min: Float(AKModalResonanceFilter.frequencyRange.lowerBound),
+            max: Float(AKModalResonanceFilter.frequencyRange.upperBound),
+            unit: .hertz,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        let qualityFactor = AUParameterTree.createParameter(
+            withIdentifier: "qualityFactor",
+            name: "Quality Factor",
+            address: AUParameterAddress(1),
+            min: Float(AKModalResonanceFilter.qualityFactorRange.lowerBound),
+            max: Float(AKModalResonanceFilter.qualityFactorRange.upperBound),
+            unit: .generic,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+
+        setParameterTree(AUParameterTree.createTree(withChildren: [frequency, qualityFactor]))
         frequency.value = Float(AKModalResonanceFilter.defaultFrequency)
         qualityFactor.value = Float(AKModalResonanceFilter.defaultQualityFactor)
     }
 
-    public override var canProcessInPlace: Bool { return true }
+    public override var canProcessInPlace: Bool { get { return true; }}
 
 }

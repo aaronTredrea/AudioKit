@@ -20,18 +20,15 @@ public enum AKButtonStyle {
     static var standardCornerRadius: CGFloat = 3.0
 
     public var callback: (AKButton) -> Void = { _ in }
-    public var releaseCallback: (AKButton) -> Void = { _ in }
 
-    var isPressed: Bool {
-        return isHighlighted
-    }
     private var isHighlighted = false {
         didSet {
             setNeedsDisplay()
         }
     }
 
-    public var font: UIFont = UIFont.boldSystemFont(ofSize: 24)
+    private var highlightAnimationTimer: Timer?
+    private var highlightAnimationAlpha: CGFloat = 1.0
 
     /// Text to display on the button
     @IBInspectable open var title: String {
@@ -41,21 +38,21 @@ public enum AKButtonStyle {
     }
 
     /// Background color of the button
-    open var color: AKColor {
+    @IBInspectable open var color: UIColor {
         didSet {
             setNeedsDisplay()
         }
     }
 
     /// Button border color
-    open var borderColor: AKColor? {
+    @IBInspectable open var borderColor: UIColor? {
         didSet {
             setNeedsDisplay()
         }
     }
 
     /// Color when the button is highlighted
-    open var highlightedColor: AKColor {
+    @IBInspectable open var highlightedColor: UIColor? {
         didSet {
             setNeedsDisplay()
         }
@@ -69,7 +66,7 @@ public enum AKButtonStyle {
     }
 
     /// Text color
-    open var textColor: AKColor? {
+    @IBInspectable open var textColor: UIColor? {
         didSet {
             setNeedsDisplay()
         }
@@ -83,38 +80,52 @@ public enum AKButtonStyle {
     }
 
     /// Handle new touches
-    open override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override open func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         callback(self)
+
         transform = CGAffineTransform(scaleX: 0.98, y: 0.98)
         isHighlighted = true
     }
 
     /// Handle touch events
     open override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        releaseCallback(self)
         transform = CGAffineTransform.identity
         isHighlighted = false
+
+        if let highlightAnimationTimer = highlightAnimationTimer {
+            highlightAnimationTimer.invalidate()
+            self.highlightAnimationTimer = nil
+        }
+        self.highlightAnimationAlpha = 0.6
+        highlightAnimationTimer = Timer.scheduledTimer(timeInterval: 0.002, target: self, selector: #selector(highlightAnimationTimerDidFire), userInfo: nil, repeats: true)
+    }
+
+    @objc private func highlightAnimationTimerDidFire() {
+        highlightAnimationAlpha += 0.01
+        setNeedsDisplay()
+        if highlightAnimationAlpha == 1.0, let highlightAnimationTimer = highlightAnimationTimer {
+            highlightAnimationTimer.invalidate()
+            self.highlightAnimationTimer = nil
+        }
     }
 
     /// Initialize the button
-    @objc public convenience init(title: String,
-                                  color: AKColor = AKStylist.sharedInstance.nextColor,
-                                  frame: CGRect = CGRect(x: 0, y: 0, width: 440, height: 60),
-                                  callback: @escaping (AKButton) -> Void) {
-        self.init(frame: frame)
+    @objc public init(title: String,
+                      color: AKColor = AKStylist.sharedInstance.nextColor,
+                      frame: CGRect = CGRect(x: 0, y: 0, width: 440, height: 60),
+                      callback: @escaping (AKButton) -> Void) {
         self.title = title
         self.color = color
-        self.highlightedColor = color.darker(by: 11) ?? color
         self.callback = callback
+        super.init(frame: frame)
 
         clipsToBounds = true
     }
 
     /// Initialization with no details
-    public override init(frame: CGRect) {
+    override public init(frame: CGRect) {
         self.title = ""
         self.color = AKStylist.sharedInstance.nextColor
-        self.highlightedColor = color.darker(by: 11) ?? AKStylist.sharedInstance.nextColor
         super.init(frame: frame)
 
         self.backgroundColor = AKColor.clear
@@ -122,10 +133,9 @@ public enum AKButtonStyle {
     }
 
     /// Initialization within Interface Builder
-    public required init?(coder: NSCoder) {
+    required public init?(coder: NSCoder) {
         self.title = ""
         self.color = AKStylist.sharedInstance.nextColor
-        self.highlightedColor = color.darker(by: 11) ?? AKStylist.sharedInstance.nextColor
         super.init(coder: coder)
 
         self.clipsToBounds = true
@@ -134,7 +144,7 @@ public enum AKButtonStyle {
     }
 
     /// Actions to perform to make sure the view is renderable in Interface Builder
-    open override func prepareForInterfaceBuilder() {
+    override open func prepareForInterfaceBuilder() {
         super.prepareForInterfaceBuilder()
 
         clipsToBounds = true
@@ -147,34 +157,26 @@ public enum AKButtonStyle {
 
     // Default border color per theme
     var borderColorForTheme: AKColor {
-        if let borderColor = borderColor {
-            return borderColor
-        }
+        if let borderColor = borderColor { return borderColor }
 
         switch AKStylist.sharedInstance.theme {
-        case .basic:
-            return AKColor(white: 0.3, alpha: 1.0)
-        case .midnight:
-            return AKColor.white
+        case .basic: return AKColor(white: 0.3, alpha: 1.0)
+        case .midnight: return AKColor.white
         }
     }
 
     // Default text color per theme
     var textColorForTheme: AKColor {
-        if let textColor = textColor {
-            return textColor
-        }
+        if let textColor = textColor { return textColor }
 
         switch AKStylist.sharedInstance.theme {
-        case .basic:
-            return AKColor(white: 0.3, alpha: 1.0)
-        case .midnight:
-            return AKColor.white
+        case .basic: return AKColor(white: 0.3, alpha: 1.0)
+        case .midnight: return AKColor.white
         }
     }
 
     /// Draw the button
-    open override func draw(_ rect: CGRect) {
+    override open func draw(_ rect: CGRect) {
         drawButton(rect: rect)
     }
 
@@ -184,10 +186,8 @@ public enum AKButtonStyle {
 
         let cornerRadius: CGFloat = {
             switch self.style {
-            case .standard:
-                return AKButton.standardCornerRadius
-            case .round:
-                return rect.height / 2.0
+            case .standard: return AKButton.standardCornerRadius
+            case .round: return rect.height / 2.0
             }
         }()
 
@@ -201,9 +201,17 @@ public enum AKButtonStyle {
 
         // Set fill color based on highlight state
         if isHighlighted {
-            highlightedColor.setFill()
+            if let highlightedColor = highlightedColor {
+                highlightedColor.setFill()
+            } else {
+                color.withAlphaComponent(0.6).setFill()
+            }
         } else {
-            color.setFill()
+            if highlightAnimationTimer != nil {
+                color.withAlphaComponent(highlightAnimationAlpha).setFill()
+            } else {
+                color.setFill()
+            }
         }
 
         outerPath.fill()
@@ -214,7 +222,7 @@ public enum AKButtonStyle {
         let labelStyle = NSMutableParagraphStyle()
         labelStyle.alignment = .center
 
-        let labelFontAttributes = [NSAttributedString.Key.font: font,
+        let labelFontAttributes = [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 24),
                                    NSAttributedString.Key.foregroundColor: textColorForTheme,
                                    NSAttributedString.Key.paragraphStyle: labelStyle]
 

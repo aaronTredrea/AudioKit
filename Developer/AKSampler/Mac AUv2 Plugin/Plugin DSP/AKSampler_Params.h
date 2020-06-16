@@ -18,7 +18,6 @@ enum
     kVibratoDepthSemitones,
     kFilterEnable,
     kFilterCutoffHarmonic,
-    kFilterCutoffEgStrength,
     kFilterResonanceDb,
     
     kAmpEgAttackTimeSeconds,
@@ -30,11 +29,6 @@ enum
     kFilterEgDecayTimeSeconds,
     kFilterEgSustainFraction,
     kFilterEgReleaseTimeSeconds,
-
-    kLoopThruRelease,
-    kMonophonic,
-    kLegato,
-    kGlideRate,
 
     kNumberOfParams
 };

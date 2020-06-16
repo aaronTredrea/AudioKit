@@ -15,6 +15,7 @@ open class AKKorgLowPassFilter: AKNode, AKToggleable, AKComponent, AKInput {
 
     // MARK: - Properties
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var cutoffFrequencyParameter: AUParameter?
     fileprivate var resonanceParameter: AUParameter?
@@ -38,22 +39,25 @@ open class AKKorgLowPassFilter: AKNode, AKToggleable, AKComponent, AKInput {
     /// Initial value for Saturation
     public static let defaultSaturation = 0.0
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Filter cutoff
     @objc open dynamic var cutoffFrequency: Double = defaultCutoffFrequency {
         willSet {
-            guard cutoffFrequency != newValue else { return }
-            if internalAU?.isSetUp == true {
-                cutoffFrequencyParameter?.value = AUValue(newValue)
+            if cutoffFrequency == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    cutoffFrequencyParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.cutoffFrequency, value: newValue)
         }
     }
@@ -61,12 +65,15 @@ open class AKKorgLowPassFilter: AKNode, AKToggleable, AKComponent, AKInput {
     /// Filter resonance (should be between 0-2)
     @objc open dynamic var resonance: Double = defaultResonance {
         willSet {
-            guard resonance != newValue else { return }
-            if internalAU?.isSetUp == true {
-                resonanceParameter?.value = AUValue(newValue)
+            if resonance == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    resonanceParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.resonance, value: newValue)
         }
     }
@@ -74,12 +81,15 @@ open class AKKorgLowPassFilter: AKNode, AKToggleable, AKComponent, AKInput {
     /// Filter saturation.
     @objc open dynamic var saturation: Double = defaultSaturation {
         willSet {
-            guard saturation != newValue else { return }
-            if internalAU?.isSetUp == true {
-                saturationParameter?.value = AUValue(newValue)
+            if saturation == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    saturationParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.saturation, value: newValue)
         }
     }
@@ -118,7 +128,6 @@ open class AKKorgLowPassFilter: AKNode, AKToggleable, AKComponent, AKInput {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
             input?.connect(to: strongSelf)
@@ -132,6 +141,18 @@ open class AKKorgLowPassFilter: AKNode, AKToggleable, AKComponent, AKInput {
         cutoffFrequencyParameter = tree["cutoffFrequency"]
         resonanceParameter = tree["resonance"]
         saturationParameter = tree["saturation"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
 
         internalAU?.setParameterImmediately(.cutoffFrequency, value: cutoffFrequency)
         internalAU?.setParameterImmediately(.resonance, value: resonance)

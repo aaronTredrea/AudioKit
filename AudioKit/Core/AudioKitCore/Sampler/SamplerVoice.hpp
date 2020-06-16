@@ -12,112 +12,42 @@
 #include "SampleBuffer.hpp"
 #include "SampleOscillator.hpp"
 #include "ADSREnvelope.hpp"
-#include "AHDSHREnvelope.hpp"
-#include "FunctionTable.hpp"
 #include "ResonantLowPassFilter.hpp"
-#include "LinearRamper.hpp"
-
-// process samples in "chunks" this size
-#define AKCORESAMPLER_CHUNKSIZE 16 // should probably be set elsewhere - currently only use this for setting up lfo
 
 namespace AudioKitCore
 {
 
     struct SamplerVoice
     {
-        float samplingRate;
-        /// every voice has 1 oscillator
-        SampleOscillator oscillator;
-
-        /// a pointer to the sample buffer for that oscillator
-        SampleBuffer *sampleBuffer;
-
-        /// two filters (left/right)
-        ResonantLowPassFilter leftFilter, rightFilter;
-        AHDSHREnvelope ampEnvelope;
-        ADSREnvelope filterEnvelope, pitchEnvelope;
-
-        // per-voice vibrato LFO
-        FunctionTableOscillator vibratoLFO;
-
-        // restart phase of per-voice vibrato LFO
-        bool restartVoiceLFO;
-
-        /// common glide rate, seconds per octave
-        float *glideSecPerOctave;
-
-        /// MIDI note number, or -1 if not playing any note
-        int noteNumber;
-
-        /// (target) note frequency in Hz
-        float noteFrequency;
-
-        /// will reduce to zero during glide
-        float glideSemitones;
-
-        /// amount of semitone change via pitch envelope
-        float pitchEnvelopeSemitones;
-
-        /// amount of semitone change via voice lfo
-        float voiceLFOSemitones;
-
-        /// fraction 0.0 - 1.0, based on MIDI velocity
-        float noteVolume;
-
+        SampleOscillator oscillator;      // every voice has 1 oscillator,
+        SampleBuffer* pSampleBuffer;      // a pointer to the sample buffer for that oscillator,
+        ResonantLowPassFilter filterL, filterR;     // two filters (left/right),
+        ADSREnvelope ampEG, filterEG;
+        
+        int noteNumber;     // MIDI note number, or -1 if not playing any note
+        float noteHz;       // note frequency in Hz
+        float noteVol;      // fraction 0.0 - 1.0, based on MIDI velocity
+        
         // temporary holding variables
-
-        /// Previous note volume while damping note before restarting
-        float tempNoteVolume;
-
-        /// Next sample buffer to use at restart
-        SampleBuffer *newSampleBuffer;
-
-        /// product of global volume, note volume
-        float tempGain;
-
-        /// ramper to smooth subsampled output of adsrEnvelope
-        LinearRamper volumeRamper;
-
-        /// true if filter should be used
-        bool isFilterEnabled;
+        float tempNoteVol;  // holds previous note volume while damping note before restarting
+        SampleBuffer* pNewSampleBuffer; // holds next sample buffer to use at restart
+        float tempGain;     // product of global volume, note volume, and amp EG
+        bool filterEnable;  // true if filter should be used
         
         SamplerVoice() : noteNumber(-1) {}
 
         void init(double sampleRate);
-
-        void updateAmpAdsrParameters() { ampEnvelope.updateParams(); }
-        void updateFilterAdsrParameters() { filterEnvelope.updateParams(); }
-        void updatePitchAdsrParameters() { pitchEnvelope.updateParams(); }
         
-        void start(unsigned noteNumber,
-                   float sampleRate,
-                   float frequency,
-                   float volume,
-                   SampleBuffer *sampleBuffer);
-        void restartNewNote(unsigned noteNumber, float sampleRate, float frequency, float volume, SampleBuffer *buffer);
-        void restartNewNoteLegato(unsigned noteNumber, float sampleRate, float frequency);
-        void restartSameNote(float volume, SampleBuffer *sampleBuffer);
+        void start(unsigned noteNum, float sampleRateHz, float freqHz, float volume, SampleBuffer* pSampleBuf);
+        void restart(float volume, SampleBuffer* pSampleBuf);
         void release(bool loopThruRelease);
         void stop();
         
         // return true if amp envelope is finished
-        bool prepToGetSamples(int sampleCount,
-                              float masterVolume,
-                              float pitchOffset,
-                              float cutoffMultiple,
-                              float keyTracking,
-                              float cutoffEnvelopeStrength,
-                              float cutoffEnvelopeVelocityScaling,
-                              float resLinear,
-                              float pitchADSRSemitones,
-                              float voiceLFOFrequencyHz,
-                              float voiceLFODepthSemitones);
-
-        bool getSamples(int sampleCount, float *leftOutput, float *rightOutput);
-
-    private:
-        bool hasStartedVoiceLFO;
-        void restartVoiceLFOIfNeeded();
+        bool prepToGetSamples(float masterVol, float pitchOffset, float cutoffMultiple, float resLinear);
+        
+        bool getSamples(int nSamples, float* pOut);
+        bool getSamples(int nSamples, float* pOutLeft, float* pOutRight);
     };
 
 }

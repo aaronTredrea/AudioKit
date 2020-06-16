@@ -11,16 +11,13 @@ import XCTest
 
 class TriangleWaveTests: AKTestCase {
 
-
-    var triangle = AKOperationGenerator { _ in return AKOperation.triangleWave() }
-
     override func setUp() {
-        afterStart = { self.triangle.start() }
+        super.setUp()
         duration = 1.0
     }
 
     func testParameterSweep() {
-        triangle = AKOperationGenerator { _ in
+        output = AKOperationGenerator { _ in
             let ramp = AKOperation.lineSegment(
                 trigger: AKOperation.metronome(),
                 start: 1,
@@ -28,7 +25,6 @@ class TriangleWaveTests: AKTestCase {
                 duration: self.duration)
             return AKOperation.triangleWave(frequency: ramp * 2_000, amplitude: ramp)
         }
-        output = triangle
         AKTestMD5("4eddd8c721f3487810f91bff1be28cc3")
     }
 

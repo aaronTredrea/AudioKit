@@ -6,8 +6,8 @@ import AudioKitUI
 
 let file = try AKAudioFile(readFileName: playgroundAudioFiles[0])
 
-let player = try AKAudioPlayer(file: file)
-player.looping = true
+let player = AKPlayer(audioFile: file)
+player.isLooping = true
 
 var compressor = AKCompressor(player)
 
@@ -43,19 +43,19 @@ class LiveView: AKLiveViewController {
         ) { sliderValue in
             compressor.headRoom = sliderValue
         })
-        addView(AKSlider(property: "Attack Duration",
-                         value: compressor.attackDuration,
+        addView(AKSlider(property: "Attack Time",
+                         value: compressor.attackTime,
                          range: 0.001 ... 0.2,
                          format: "%0.4f s"
         ) { sliderValue in
-            compressor.attackDuration = sliderValue
+            compressor.attackTime = sliderValue
         })
-        addView(AKSlider(property: "Release Duration",
-                         value: compressor.releaseDuration,
+        addView(AKSlider(property: "Release Time",
+                         value: compressor.releaseTime,
                          range: 0.01 ... 3,
                          format: "%0.3f s"
         ) { sliderValue in
-            compressor.releaseDuration = sliderValue
+            compressor.releaseTime = sliderValue
         })
         addView(AKSlider(property: "Master Gain",
                          value: compressor.masterGain,

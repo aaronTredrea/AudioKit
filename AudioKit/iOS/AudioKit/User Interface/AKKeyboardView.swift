@@ -6,11 +6,10 @@
 //  Copyright © 2018 AudioKit. All rights reserved.
 //
 import UIKit
-import AudioKit
 
 /// Delegate for keyboard events
-@objc public protocol AKKeyboardDelegate: AnyObject {
-    /// Note on events
+public protocol AKKeyboardDelegate: class {
+    /// Note on evenets
     func noteOn(note: MIDINoteNumber)
     /// Note off events
     func noteOff(note: MIDINoteNumber)
@@ -18,7 +17,7 @@ import AudioKit
 
 /// Clickable keyboard mainly used for AudioKit playgrounds
 @IBDesignable open class AKKeyboardView: UIView, AKMIDIListener {
-    //swiftlint:disable
+
     /// Number of octaves displayed at once
     @IBInspectable open var octaveCount: Int = 2
 
@@ -41,15 +40,14 @@ import AudioKit
     @IBInspectable open var  keyOnColor: UIColor = #colorLiteral(red: 1.000, green: 0.000, blue: 0.000, alpha: 1.000)
 
     /// Class to handle user actions
-    @objc open weak var delegate: AKKeyboardDelegate?
+    open weak var delegate: AKKeyboardDelegate?
 
     var oneOctaveSize = CGSize.zero
     var xOffset: CGFloat = 1
     var onKeys = Set<MIDINoteNumber>()
-    var programmaticOnKeys = Set<MIDINoteNumber>()
 
     /// Allows multiple notes to play concurrently
-    @objc open var polyphonicMode = false {
+    open var polyphonicMode = false {
         didSet {
             for note in onKeys {
                 delegate?.noteOff(note: note)
@@ -74,7 +72,7 @@ import AudioKit
     // MARK: - Initialization
 
     /// Initialize the keyboard with default info
-    @objc public override init(frame: CGRect) {
+    public override init(frame: CGRect) {
         super.init(frame: frame)
         isMultipleTouchEnabled = true
     }
@@ -91,11 +89,11 @@ import AudioKit
         oneOctaveSize = CGSize(width: Double(width / octaveCount - width / (octaveCount * octaveCount * 7)),
                                height: Double(height))
         isMultipleTouchEnabled = true
-        polyphonicMode = polyphonic
+        setNeedsDisplay()
     }
 
     /// Initialization within Interface Builder
-    public required init?(coder aDecoder: NSCoder) {
+    required public init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
         isMultipleTouchEnabled = true
     }
@@ -103,7 +101,7 @@ import AudioKit
     // MARK: - Storyboard Rendering
 
     /// Set up the view for rendering in Interface Builder
-    open override func prepareForInterfaceBuilder() {
+    override open func prepareForInterfaceBuilder() {
         super.prepareForInterfaceBuilder()
 
         let width = Int(self.frame.width)
@@ -116,7 +114,7 @@ import AudioKit
     }
 
     /// Keyboard view size
-    open override var intrinsicContentSize: CGSize {
+    override open var intrinsicContentSize: CGSize {
         return CGSize(width: 1_024, height: 84)
     }
 
@@ -128,15 +126,15 @@ import AudioKit
     // MARK: - Drawing
 
     /// Draw the view
-    open override func draw(_ rect: CGRect) {
+    override open func draw(_ rect: CGRect) {
 
         let width = Int(self.frame.width)
         let height = Int(self.frame.height)
         oneOctaveSize = CGSize(width: Double(width / octaveCount - width / (octaveCount * octaveCount * 7)),
                                height: Double(height))
 
-        for index in 0 ..< octaveCount {
-            drawOctaveCanvas(index)
+        for i in 0 ..< octaveCount {
+            drawOctaveCanvas(i)
         }
 
         let tempWidth = CGFloat(width) - CGFloat((octaveCount * 7) - 1) * whiteKeySize.width - 1
@@ -172,28 +170,28 @@ import AudioKit
 
         var whiteKeysPaths = [UIBezierPath]()
 
-        for index in 0 ..< 7 {
+        for i in 0 ..< 7 {
             whiteKeysPaths.append(
-                UIBezierPath(rect: CGRect(x: whiteKeyX(index, octaveNumber: octaveNumber),
+                UIBezierPath(rect: CGRect(x: whiteKeyX(i, octaveNumber: octaveNumber),
                                           y: 1,
                                           width: whiteKeySize.width - 1,
                                           height: whiteKeySize.height))
             )
-            whiteKeyColor(index, octaveNumber: octaveNumber).setFill()
-            whiteKeysPaths[index].fill()
+            whiteKeyColor(i, octaveNumber: octaveNumber).setFill()
+            whiteKeysPaths[i].fill()
         }
 
         var topKeyPaths = [UIBezierPath]()
 
-        for index in 0 ..< 28 {
+        for i in 0 ..< 28 {
             topKeyPaths.append(
-                UIBezierPath(rect: CGRect(x: topKeyX(index, octaveNumber: octaveNumber),
+                UIBezierPath(rect: CGRect(x: topKeyX(i, octaveNumber: octaveNumber),
                                           y: 1,
                                           width: topKeySize.width,
                                           height: topKeySize.height))
             )
-            topKeyColor(index, octaveNumber: octaveNumber).setFill()
-            topKeyPaths[index].fill()
+            topKeyColor(i, octaveNumber: octaveNumber).setFill()
+            topKeyPaths[i].fill()
         }
     }
 
@@ -214,18 +212,18 @@ import AudioKit
             return nil
         }
 
-        let xPoint = location.x - xOffset
-        let yPoint = location.y
+        let x = location.x - xOffset
+        let y = location.y
 
         var note = 0
 
-        if yPoint > oneOctaveSize.height * topKeyHeightRatio {
-            let octNum = Int(xPoint / oneOctaveSize.width)
-            let scaledX = xPoint - CGFloat(octNum) * oneOctaveSize.width
+        if y > oneOctaveSize.height * topKeyHeightRatio {
+            let octNum = Int(x / oneOctaveSize.width)
+            let scaledX = x - CGFloat(octNum) * oneOctaveSize.width
             note = (firstOctave + octNum) * 12 + whiteKeyNotes[max(0, Int(scaledX / whiteKeySize.width))] + baseMIDINote
         } else {
-            let octNum = Int(xPoint / oneOctaveSize.width)
-            let scaledX = xPoint - CGFloat(octNum) * oneOctaveSize.width
+            let octNum = Int(x / oneOctaveSize.width)
+            let scaledX = x - CGFloat(octNum) * oneOctaveSize.width
             note = (firstOctave + octNum) * 12 + topKeyNotes[max(0, Int(scaledX / topKeySize.width))] + baseMIDINote
         }
         if note >= 0 {
@@ -237,7 +235,7 @@ import AudioKit
     }
 
     /// Handle new touches
-    open override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override open func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         let notes = notesFromTouches(touches)
         for note in notes {
             pressAdded(note)
@@ -247,7 +245,7 @@ import AudioKit
     }
 
     /// Handle touches completed
-    open override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override open func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             if let note = noteFromTouchLocation(touch.location(in: self)) {
                 // verify that there isn't still a touch remaining on same key from another finger
@@ -264,7 +262,7 @@ import AudioKit
     }
 
     /// Handle moved touches
-    open override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override open func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             if let key = noteFromTouchLocation(touch.location(in: self)),
                 key != noteFromTouchLocation(touch.previousLocation(in: self)) {
@@ -276,7 +274,7 @@ import AudioKit
     }
 
     /// Handle stopped touches
-    open override func touchesCancelled(_ touches: Set<UITouch>?, with event: UIEvent?) {
+    override open func touchesCancelled(_ touches: Set<UITouch>?, with event: UIEvent?) {
         verifyTouches(event?.allTouches)
     }
 
@@ -294,26 +292,6 @@ import AudioKit
             delegate?.noteOn(note: newNote)
         }
 
-    }
-
-    // MARK: - Programmatic Key Pushes
-
-    /// Programmatically trigger key press without calling delegate
-    open func programmaticNoteOn(_ note: MIDINoteNumber) {
-        programmaticOnKeys.insert(note)
-        onKeys.insert(note)
-        setNeedsDisplay()
-    }
-
-    /// Programatically remove key press without calling delegate
-    ///
-    /// Note: you can programmatically 'release' a note that has been pressed
-    /// manually, but in such a case, the delegate.noteOff() will not be called
-    /// when the finger is removed
-    open func programmaticNoteOff(_ note: MIDINoteNumber) {
-        programmaticOnKeys.remove(note)
-        onKeys.remove(note)
-        setNeedsDisplay()
     }
 
     private func pressRemoved(_ note: MIDINoteNumber, touches: Set<UITouch>? = nil) {
@@ -338,9 +316,7 @@ import AudioKit
         let disjunct = onKeys.subtracting(notes)
         if disjunct.isNotEmpty {
             for note in disjunct {
-                if ❗️programmaticOnKeys.contains(note) {
-                    pressRemoved(note)
-                }
+                pressRemoved(note)
             }
         }
     }
@@ -355,6 +331,7 @@ import AudioKit
         return CGSize(width: oneOctaveSize.width / (4 * 7), height: oneOctaveSize.height * topKeyHeightRatio)
     }
 
+    // swiftlint:disable variable_name
     func whiteKeyX(_ n: Int, octaveNumber: Int) -> CGFloat {
         return CGFloat(n) * whiteKeySize.width + xOffset + oneOctaveSize.width * CGFloat(octaveNumber)
     }

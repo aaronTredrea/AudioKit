@@ -16,6 +16,7 @@ open class AKMandolin: AKNode, AKComponent {
     // MARK: - Properties
 
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var detuneParameter: AUParameter?
     fileprivate var bodySizeParameter: AUParameter?
@@ -26,21 +27,24 @@ open class AKMandolin: AKNode, AKComponent {
     //    private var course3FrequencyParameter: AUParameter?
     //    private var course4FrequencyParameter: AUParameter?
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Detuning of second string in the course (1=Unison (deault), 2=Octave)
     @objc open dynamic var detune: Double = 1 {
         willSet {
-            guard detune != newValue else { return }
-            if internalAU?.isSetUp == true {
-                detuneParameter?.value = AUValue(newValue)
-            } else {
-                internalAU?.detune = AUValue(newValue)
+            if detune != newValue {
+                if internalAU?.isSetUp ?? false {
+                    if let existingToken = token {
+                        detuneParameter?.setValue(Float(newValue), originator: existingToken)
+                    }
+                } else {
+                    internalAU?.detune = Float(newValue)
+                }
             }
         }
     }
@@ -48,11 +52,14 @@ open class AKMandolin: AKNode, AKComponent {
     /// Relative size of the mandoline (Default: 1, ranges ~ 0.5 - 2)
     @objc open dynamic var bodySize: Double = 1 {
         willSet {
-            guard bodySize != newValue else { return }
-            if internalAU?.isSetUp == true {
-                bodySizeParameter?.value = AUValue(newValue)
-            } else {
-                internalAU?.bodySize = AUValue(newValue)
+            if bodySize != newValue {
+                if internalAU?.isSetUp ?? false {
+                    if let existingToken = token {
+                        bodySizeParameter?.setValue(Float(newValue), originator: existingToken)
+                    }
+                } else {
+                    internalAU?.bodySize = Float(newValue)
+                }
             }
         }
     }
@@ -77,7 +84,6 @@ open class AKMandolin: AKNode, AKComponent {
         super.init()
         AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self] avAudioUnit in
 
-            self?.avAudioUnit = avAudioUnit
             self?.avAudioNode = avAudioUnit
             self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
         }
@@ -89,6 +95,18 @@ open class AKMandolin: AKNode, AKComponent {
 
         detuneParameter = tree["detune"]
         bodySizeParameter = tree["bodySize"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
         internalAU?.detune = Float(detune)
         internalAU?.bodySize = Float(bodySize)
     }

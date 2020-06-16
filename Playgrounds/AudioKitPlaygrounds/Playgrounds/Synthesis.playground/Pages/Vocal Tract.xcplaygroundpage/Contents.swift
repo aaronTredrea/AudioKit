@@ -68,12 +68,12 @@ class LiveView: AKLiveViewController {
             voc.nasality = self.nasalitySlider.randomize()
         })
 
-        addView(AKSlider(property: "Ramp Duration",
-                         value: voc.rampDuration,
+        addView(AKSlider(property: "Ramp Time",
+                         value: voc.rampTime,
                          range: 0 ... 10,
                          format: "%0.3f s"
         ) { time in
-            voc.rampDuration = time
+            voc.rampTime = time
         })
     }
 }

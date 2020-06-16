@@ -16,24 +16,29 @@ open class AKStereoFieldLimiter: AKNode, AKToggleable, AKComponent, AKInput {
     // MARK: - Properties
 
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var amountParameter: AUParameter?
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Limiting Factor
     @objc open dynamic var amount: Double = 1 {
         willSet {
-            guard amount != newValue else { return }
-
-            if internalAU?.isSetUp == true {
-                amountParameter?.value = AUValue(newValue)
+            if amount == newValue {
                 return
+            }
+
+            if internalAU?.isSetUp ?? false {
+                if token != nil && amountParameter != nil {
+                    amountParameter?.setValue(Float(newValue), originator: token!)
+                    return
+                }
             }
             internalAU?.setParameterImmediately(.amount, value: newValue)
         }
@@ -64,7 +69,6 @@ open class AKStereoFieldLimiter: AKNode, AKToggleable, AKComponent, AKInput {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
 
@@ -78,6 +82,17 @@ open class AKStereoFieldLimiter: AKNode, AKToggleable, AKComponent, AKInput {
 
         self.amountParameter = tree["amount"]
 
+        self.token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
         internalAU?.setParameterImmediately(.amount, value: amount)
     }
 

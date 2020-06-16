@@ -1,3 +1,11 @@
+/*
+ * Foo
+ *
+ * This is a dummy module. It doesn't do much.
+ * Feel free to use this as a boilerplate template.
+ *
+ */
+
 #include <stdlib.h>
 #include "soundpipe.h"
 

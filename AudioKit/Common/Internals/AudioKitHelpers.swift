@@ -15,30 +15,16 @@ public typealias MIDINoteNumber = UInt8
 public typealias MIDIVelocity = UInt8
 public typealias MIDIChannel = UInt8
 
-/// A Sample type, just a UInt32
-public typealias Sample = UInt32
-
-/// Callback function that can be called from C
-public typealias AKCCallback = @convention(block) () -> Void
-
-/// Callback function that can be called from C
-public typealias AKCMIDICallback = @convention(block) (UInt8, UInt8, UInt8) -> Void
-
-extension AudioUnitParameterOptions {
-    public static let `default`: AudioUnitParameterOptions = [.flag_IsReadable, .flag_IsWritable, .flag_CanRamp]
-}
-
-extension CGRect {
-    public init(size: CGSize) {
-        self.init(origin: .zero, size: size)
+extension Collection {
+    /// Return a random element from the collection
+    public var randomIndex: Index {
+        let offset = Int(arc4random_uniform(UInt32(Int64(count))))
+        return index(startIndex, offsetBy: offset)
     }
 
-    public init(width: CGFloat, height: CGFloat) {
-        self.init(origin: .zero, size: CGSize(width: width, height: height))
-    }
-
-    public init(width: Int, height: Int) {
-        self.init(width: CGFloat(width), height: CGFloat(height))
+    /// Retrieve a random element from the collection
+    public func randomElement() -> Iterator.Element {
+        return self[randomIndex]
     }
 }
 
@@ -54,6 +40,25 @@ public func fourCC(_ string: String) -> UInt32 {
         out |= UInt32(char)
     }
     return out
+}
+
+/// Wrapper for printing out status messages to the console,
+/// eventually it could be expanded with log levels
+/// - items: Zero or more items to print.
+///
+@inline(__always)
+public func AKLog(fullname: String = #function, file: String = #file, line: Int = #line, _ items: Any...) {
+    if AKSettings.enableLogging {
+        let fileName = (file as NSString).lastPathComponent
+        var content = ""
+        for i in 0 ..< items.count {
+            content += String(describing: items[i])
+            if i < items.count - 1 {
+                content += " "
+            }
+        }
+        Swift.print("\(fileName):\(fullname):\(line):\(content)")
+    }
 }
 
 /// Random double between bounds
@@ -82,6 +87,7 @@ public func random(in range: ClosedRange<Double>) -> Double {
 
 /// Extension to calculate scaling factors, useful for UI controls
 extension Double {
+
     /// Return a value on [minimum, maximum] to a [0, 1] range, according to a taper
     ///
     /// - Parameters:
@@ -93,7 +99,7 @@ extension Double {
 
         if taper > 0 {
             // algebraic taper
-            return pow(((self - range.lowerBound) / (range.upperBound - range.lowerBound)), (1.0 / taper))
+            return pow(((self - range.lowerBound ) / (range.upperBound - range.lowerBound)), (1.0 / taper))
         } else {
             // exponential taper
             return range.lowerBound * exp(log(range.upperBound / range.lowerBound) * self)
@@ -109,7 +115,7 @@ extension Double {
     ///
     @available(*, deprecated, renamed: "normalized(from:taper:)")
     public func normalized(minimum: Double, maximum: Double, taper: Double = 1) -> Double {
-        return self.normalized(from: minimum ... maximum, taper: taper)
+        return self.normalized(from: minimum...maximum, taper: taper)
     }
 
     /// Convert a value on [minimum, maximum] to a [0, 1] range, according to a taper
@@ -131,10 +137,11 @@ extension Double {
     ///   - taper: For taper > 0, there is an algebraic curve, taper = 1 is linear, and taper < 0 is exponential
     ///
     public func denormalized(to range: ClosedRange<Double>, taper: Double = 1) -> Double {
+
         assert(!(range.contains(0.0) && taper < 0), "Cannot have negative taper with a range containing zero.")
 
         // Avoiding division by zero in this trivial case
-        if range.upperBound - range.lowerBound < 0.00001 {
+        if range.upperBound - range.lowerBound < 0.000_01 {
             return range.lowerBound
         }
 
@@ -145,8 +152,8 @@ extension Double {
             // exponential taper
             var adjustedMinimum: Double = 0.0
             var adjustedMaximum: Double = 0.0
-            if range.lowerBound == 0 { adjustedMinimum = 0.00_000_000_001 }
-            if range.upperBound == 0 { adjustedMaximum = 0.00_000_000_001 }
+            if range.lowerBound == 0 { adjustedMinimum = 0.000_000_000_01 }
+            if range.upperBound == 0 { adjustedMaximum = 0.000_000_000_01 }
 
             return log(self / adjustedMinimum) / log(adjustedMaximum / adjustedMinimum)
         }
@@ -179,6 +186,7 @@ extension Double {
 
 /// Extension to Int to calculate frequency from a MIDI Note Number
 extension Int {
+
     /// Calculate frequency from a MIDI Note Number
     ///
     /// - parameter aRef: Reference frequency of A Note (Default: 440Hz)
@@ -190,6 +198,7 @@ extension Int {
 
 /// Extension to Int to calculate frequency from a MIDI Note Number
 extension UInt8 {
+
     /// Calculate frequency from a MIDI Note Number
     ///
     /// - parameter aRef: Reference frequency of A Note (Default: 440Hz)
@@ -201,6 +210,7 @@ extension UInt8 {
 
 /// Extension to Double to get the frequency from a MIDI Note Number
 extension Double {
+
     /// Calculate frequency from a floating point MIDI Note Number
     ///
     /// - parameter aRef: Reference frequency of A Note (Default: 440Hz)
@@ -208,9 +218,11 @@ extension Double {
     public func midiNoteToFrequency(_ aRef: Double = 440.0) -> Double {
         return pow(2.0, (self - 69.0) / 12.0) * aRef
     }
+
 }
 
 extension Int {
+
     /// Calculate MIDI Note Number from a frequency in Hz
     ///
     /// - parameter aRef: Reference frequency of A Note (Default: 440Hz)
@@ -222,6 +234,7 @@ extension Int {
 
 /// Extension to Double to get the frequency from a MIDI Note Number
 extension Double {
+
     /// Calculate MIDI Note Number from a frequency in Hz
     ///
     /// - parameter aRef: Reference frequency of A Note (Default: 440Hz)
@@ -232,10 +245,10 @@ extension Double {
 }
 
 extension RangeReplaceableCollection where Iterator.Element: ExpressibleByIntegerLiteral {
-    /// Initialize array with zeros, ~10x faster than append for array of size 4096
-    ///
-    /// - parameter count: Number of elements in the array
-    ///
+	/// Initialize array with zeros, ~10x faster than append for array of size 4096
+	///
+	/// - parameter count: Number of elements in the array
+	///
 
     public init(zeros count: Int) {
         self.init(repeating: 0, count: count)
@@ -275,12 +288,12 @@ internal func AudioUnitSetParameter(_ unit: AudioUnit, param: AudioUnitParameter
 
 /// Adding subscript
 extension AVAudioUnit {
-    subscript(param: AudioUnitParameterID) -> Double {
+    subscript (param: AudioUnitParameterID) -> Double {
         get {
-            return AudioUnitGetParameter(audioUnit, param: param)
+              return AudioUnitGetParameter(audioUnit, param: param)
         }
         set {
-            AudioUnitSetParameter(audioUnit, param: param, to: newValue)
+              AudioUnitSetParameter(audioUnit, param: param, to: newValue)
         }
     }
 }
@@ -292,19 +305,19 @@ internal struct AUWrapper {
         self.avAudioUnit = avAudioUnit
     }
 
-    subscript(param: AudioUnitParameterID) -> Double {
+    subscript (param: AudioUnitParameterID) -> Double {
         get {
-            return self.avAudioUnit[param]
+            return avAudioUnit[param]
         }
         set {
-            self.avAudioUnit[param] = newValue
+            avAudioUnit[param] = newValue
         }
     }
 }
 
 /// Adding instantiation with component and callback
 public extension AVAudioUnit {
-    class func _instantiate(with component: AudioComponentDescription, callback: @escaping (AVAudioUnit) -> Void) {
+     class func _instantiate(with component: AudioComponentDescription, callback: @escaping (AVAudioUnit) -> Void) {
         AVAudioUnit.instantiate(with: component, options: []) { avAudioUnit, _ in
             avAudioUnit.map {
                 AudioKit.engine.attach($0)
@@ -314,27 +327,21 @@ public extension AVAudioUnit {
     }
 }
 
-extension AVAudioNode {
-    func inputConnections() -> [AVAudioConnectionPoint] {
-        return (0 ..< numberOfInputs).compactMap { engine?.inputConnectionPoint(for: self, inputBus: $0) }
-    }
-}
-
-public extension AUParameter {
+extension AUParameter {
     @nonobjc
-    convenience init(identifier: String,
+    convenience init(_ identifier: String,
                      name: String,
                      address: AUParameterAddress,
-                     range: ClosedRange<Double>,
+                     range: ClosedRange<AUValue>,
                      unit: AudioUnitParameterUnit,
-                     flags: AudioUnitParameterOptions) {
-        self.init(identifier: identifier,
+                     value: AUValue = 0) {
+        self.init(identifier,
                   name: name,
                   address: address,
-                  min: AUValue(range.lowerBound),
-                  max: AUValue(range.upperBound),
-                  unit: unit,
-                  flags: flags)
+                  min: range.lowerBound,
+                  max: range.upperBound,
+                  unit: unit)
+        self.value = value
     }
 }
 
@@ -360,20 +367,20 @@ extension Occupiable {
     }
 }
 
-extension String: Occupiable {}
+extension String: Occupiable { }
 
 // I can't think of a way to combine these collection types. Suggestions welcome.
-extension Array: Occupiable {}
-extension Dictionary: Occupiable {}
-extension Set: Occupiable {}
+extension Array: Occupiable { }
+extension Dictionary: Occupiable { }
+extension Set: Occupiable { }
 
 #if !os(macOS)
-extension AVAudioSession.CategoryOptions: Occupiable {}
+extension AVAudioSession.CategoryOptions: Occupiable { }
 #endif
 
 prefix operator ❗️
 
 /// Negative logic can be confusing, so we draw special attention to those cases
-public prefix func ❗️(a: Bool) -> Bool {
+prefix public func ❗️(a: Bool) -> Bool {
     return !a
 }

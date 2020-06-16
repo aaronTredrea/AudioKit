@@ -40,10 +40,10 @@ class LiveView: AKLiveViewController, AKKeyboardDelegate {
             fmWithADSR.decayDuration = dec
             fmWithADSR.sustainLevel = sus
             fmWithADSR.releaseDuration = rel
-            AKLog("fmWithADSR.attackDuration  = \(att)")
-            AKLog("fmWithADSR.decayDuration   = \(dec)")
-            AKLog("fmWithADSR.sustainLevel    = \(sus)")
-            AKLog("fmWithADSR.releaseDuration = \(rel)\n")
+            Swift.print("fmWithADSR.attackDuration  = \(att)")
+            Swift.print("fmWithADSR.decayDuration   = \(dec)")
+            Swift.print("fmWithADSR.sustainLevel    = \(sus)")
+            Swift.print("fmWithADSR.releaseDuration = \(rel)\n")
         }
         adsrView.attackDuration = fmWithADSR.attackDuration
         adsrView.decayDuration = fmWithADSR.decayDuration

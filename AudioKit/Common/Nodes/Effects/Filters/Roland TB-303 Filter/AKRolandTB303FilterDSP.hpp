@@ -15,12 +15,12 @@ typedef NS_ENUM(AUParameterAddress, AKRolandTB303FilterParameter) {
     AKRolandTB303FilterParameterResonance,
     AKRolandTB303FilterParameterDistortion,
     AKRolandTB303FilterParameterResonanceAsymmetry,
-    AKRolandTB303FilterParameterRampDuration
+    AKRolandTB303FilterParameterRampTime
 };
 
 #ifndef __cplusplus
 
-AKDSPRef createRolandTB303FilterDSP(int channelCount, double sampleRate);
+void* createRolandTB303FilterDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -28,11 +28,12 @@ AKDSPRef createRolandTB303FilterDSP(int channelCount, double sampleRate);
 
 class AKRolandTB303FilterDSP : public AKSoundpipeDSPBase {
 private:
-    struct InternalData;
-    std::unique_ptr<InternalData> data;
+    struct _Internal;
+    std::unique_ptr<_Internal> _private;
  
 public:
     AKRolandTB303FilterDSP();
+    ~AKRolandTB303FilterDSP();
 
     float cutoffFrequencyLowerBound = 12.0;
     float cutoffFrequencyUpperBound = 20000.0;
@@ -48,7 +49,7 @@ public:
     float defaultDistortion = 2.0;
     float defaultResonanceAsymmetry = 0.5;
 
-    int defaultRampDurationSamples = 10000;
+    int defaultRampTimeSamples = 10000;
 
     // Uses the ParameterAddress as a key
     void setParameter(AUParameterAddress address, float value, bool immediate) override;
@@ -56,9 +57,9 @@ public:
     // Uses the ParameterAddress as a key
     float getParameter(AUParameterAddress address) override;
     
-    void init(int channelCount, double sampleRate) override;
+    void init(int _channels, double _sampleRate) override;
 
-    void deinit() override;
+    void destroy();
 
     void process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) override;
 };

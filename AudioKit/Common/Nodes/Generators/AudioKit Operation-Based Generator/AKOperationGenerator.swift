@@ -74,15 +74,15 @@ open class AKOperationGenerator: AKNode, AKToggleable, AKComponent {
     /// Initialize the generator for stereo (2 channels)
     ///
     /// - Parameters:
-    ///   - channelCount: Only 2 channels are supported, but need to differentiate the initializer
-    ///   - operations: Array of operations [left, right]
+    ///   - numberOfChannels: Only 2 channels are supported, but need to differentiate the initializer
+    ///   - operations:       Array of operations [left, right]
     ///
-    public convenience init(channelCount: Int, operations: ([AKOperation]) -> [AKOperation]) {
+    public convenience init(numberOfChannels: Int, operations: ([AKOperation]) -> [AKOperation]) {
 
         let computedParameters = operations(AKOperation.parameters)
         let left = computedParameters[0]
 
-        if channelCount == 2 {
+        if numberOfChannels == 2 {
             let right = computedParameters[1]
             self.init(sporth: "\(right.sporth) \(left.sporth)")
         } else {
@@ -90,12 +90,6 @@ open class AKOperationGenerator: AKNode, AKToggleable, AKComponent {
         }
     }
 
-    // Mostly here to placate LLVM into generating the proper Swift interface file - do not use
-    public override init() {
-        self.customUgens = []
-        super.init()
-    }
-    
     /// Initialize this generator node with a generic sporth stack and a triggering flag
     ///
     /// - parameter sporth: String of valid Sporth code
@@ -109,7 +103,6 @@ open class AKOperationGenerator: AKNode, AKToggleable, AKComponent {
         super.init()
         AVAudioUnit._instantiate(with: _Self.ComponentDescription) { [weak self] avAudioUnit in
 
-            self?.avAudioUnit = avAudioUnit
             self?.avAudioNode = avAudioUnit
             self?.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
             for ugen in self?.customUgens ?? [] {

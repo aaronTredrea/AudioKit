@@ -14,12 +14,12 @@ typedef NS_ENUM(AUParameterAddress, AKKorgLowPassFilterParameter) {
     AKKorgLowPassFilterParameterCutoffFrequency,
     AKKorgLowPassFilterParameterResonance,
     AKKorgLowPassFilterParameterSaturation,
-    AKKorgLowPassFilterParameterRampDuration
+    AKKorgLowPassFilterParameterRampTime
 };
 
 #ifndef __cplusplus
 
-AKDSPRef createKorgLowPassFilterDSP(int channelCount, double sampleRate);
+void* createKorgLowPassFilterDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -27,11 +27,12 @@ AKDSPRef createKorgLowPassFilterDSP(int channelCount, double sampleRate);
 
 class AKKorgLowPassFilterDSP : public AKSoundpipeDSPBase {
 private:
-    struct InternalData;
-    std::unique_ptr<InternalData> data;
+    struct _Internal;
+    std::unique_ptr<_Internal> _private;
  
 public:
     AKKorgLowPassFilterDSP();
+    ~AKKorgLowPassFilterDSP();
 
     float cutoffFrequencyLowerBound = 0.0;
     float cutoffFrequencyUpperBound = 22050.0;
@@ -44,7 +45,7 @@ public:
     float defaultResonance = 1.0;
     float defaultSaturation = 0.0;
 
-    int defaultRampDurationSamples = 10000;
+    int defaultRampTimeSamples = 10000;
 
     // Uses the ParameterAddress as a key
     void setParameter(AUParameterAddress address, float value, bool immediate) override;
@@ -52,9 +53,9 @@ public:
     // Uses the ParameterAddress as a key
     float getParameter(AUParameterAddress address) override;
     
-    void init(int channelCount, double sampleRate) override;
+    void init(int _channels, double _sampleRate) override;
 
-    void deinit() override;
+    void destroy();
 
     void process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) override;
 };

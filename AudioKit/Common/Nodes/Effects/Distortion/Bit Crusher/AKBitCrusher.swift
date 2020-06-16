@@ -15,6 +15,7 @@ open class AKBitCrusher: AKNode, AKToggleable, AKComponent, AKInput {
 
     // MARK: - Properties
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var bitDepthParameter: AUParameter?
     fileprivate var sampleRateParameter: AUParameter?
@@ -31,20 +32,24 @@ open class AKBitCrusher: AKNode, AKToggleable, AKComponent, AKInput {
     /// Initial value for Sample Rate
     public static let defaultSampleRate = 10_000.0
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// The bit depth of signal output. Typically in range (1-24). Non-integer values are OK.
     @objc open dynamic var bitDepth: Double = defaultBitDepth {
         willSet {
-            guard bitDepth != newValue else { return }
-            if internalAU?.isSetUp == true {
-                bitDepthParameter?.value = AUValue(newValue)
+            if bitDepth == newValue {
                 return
+            }
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    bitDepthParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
             }
             internalAU?.setParameterImmediately(.bitDepth, value: newValue)
         }
@@ -53,12 +58,15 @@ open class AKBitCrusher: AKNode, AKToggleable, AKComponent, AKInput {
     /// The sample rate of signal output.
     @objc open dynamic var sampleRate: Double = defaultSampleRate {
         willSet {
-            guard sampleRate != newValue else { return }
-            if internalAU?.isSetUp == true {
-                sampleRateParameter?.value = AUValue(newValue)
+            if sampleRate == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    sampleRateParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.sampleRate, value: newValue)
         }
     }
@@ -94,7 +102,6 @@ open class AKBitCrusher: AKNode, AKToggleable, AKComponent, AKInput {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
             input?.connect(to: strongSelf)
@@ -107,6 +114,18 @@ open class AKBitCrusher: AKNode, AKToggleable, AKComponent, AKInput {
 
         bitDepthParameter = tree["bitDepth"]
         sampleRateParameter = tree["sampleRate"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
 
         internalAU?.setParameterImmediately(.bitDepth, value: bitDepth)
         internalAU?.setParameterImmediately(.sampleRate, value: sampleRate)

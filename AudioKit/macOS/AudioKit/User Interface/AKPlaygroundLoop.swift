@@ -41,7 +41,7 @@ public class AKPlaygroundLoop: NSObject {
         self.perform(#selector(update),
                      with: nil,
                      afterDelay: duration,
-                     inModes: [.common])
+                     inModes: [RunLoop.Mode.common])
 
     }
 }

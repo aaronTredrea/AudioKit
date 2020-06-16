@@ -7,18 +7,15 @@
 import AudioKitPlaygrounds
 import AudioKit
 
-var sequencer = AKAppleSequencer()
+var sequencer = AKSequencer()
 
 // at Tempo 120, that will trigger every sixteenth note
 var tempo = 120.0
 var division = 1
 
-var callbacker = AKMIDICallbackInstrument { status, note, _ in
-    guard let midiStatus = AKMIDIStatusType.from(byte: status) else {
-        return
-    }
-    if midiStatus == .noteOn {
-        AKLog("Start Note \(note) at \(sequencer.currentPosition.seconds)")
+var callbacker = AKCallbackInstrument { status, note, _ in
+    if status == .noteOn {
+        print("Start Note \(note) at \(sequencer.currentPosition.seconds)")
     }
 }
 
@@ -38,13 +35,11 @@ clickTrack?.setMIDIOutput(callbacker.midiIn)
 clickTrack?.setLoopInfo(AKDuration(beats: 1.0), numberOfLoops: 10)
 sequencer.setTempo(tempo)
 
-//: We must link the clock's output to AudioKit (even if we don't need the sound)
-AudioKit.output = callbacker
-try AudioKit.start()
+// We must link the clock's output to AudioKit (even if we don't need the sound)
+//AudioKit.output = callbacker
+//try AudioKit.start()
 
-//: Also note that when deploying this approach to an app, make sure to
-//: enable "Background Modes - Audio" otherwise it won't work.
-
+//: Create a simple user interface
 import AudioKitUI
 
 class LiveView: AKLiveViewController {
@@ -63,6 +58,7 @@ class LiveView: AKLiveViewController {
         addLabel("Open the console log to show output.")
     }
 }
+sequencer.play()
 
 import PlaygroundSupport
 PlaygroundPage.current.needsIndefiniteExecution = true

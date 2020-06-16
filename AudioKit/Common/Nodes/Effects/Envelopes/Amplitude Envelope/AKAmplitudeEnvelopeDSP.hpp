@@ -15,14 +15,14 @@ typedef NS_ENUM(AUParameterAddress, AKAmplitudeEnvelopeParameter) {
     AKAmplitudeEnvelopeParameterDecayDuration,
     AKAmplitudeEnvelopeParameterSustainLevel,
     AKAmplitudeEnvelopeParameterReleaseDuration,
-    AKAmplitudeEnvelopeParameterRampDuration
+    AKAmplitudeEnvelopeParameterRampTime
 };
 
 #import "AKLinearParameterRamp.hpp"  // have to put this here to get it included in umbrella header
 
 #ifndef __cplusplus
 
-AKDSPRef createAmplitudeEnvelopeDSP(int channelCount, double sampleRate);
+void* createAmplitudeEnvelopeDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -51,7 +51,7 @@ public:
         releaseDurationRamp.setDurationInSamples(10000);
     }
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     void setParameter(AUParameterAddress address, float value, bool immediate) override {
         switch (address) {
             case AKAmplitudeEnvelopeParameterAttackDuration:
@@ -66,16 +66,16 @@ public:
             case AKAmplitudeEnvelopeParameterReleaseDuration:
                 releaseDurationRamp.setTarget(value, immediate);
                 break;
-            case AKAmplitudeEnvelopeParameterRampDuration:
-                attackDurationRamp.setRampDuration(value, sampleRate);
-                decayDurationRamp.setRampDuration(value, sampleRate);
-                sustainLevelRamp.setRampDuration(value, sampleRate);
-                releaseDurationRamp.setRampDuration(value, sampleRate);
+            case AKAmplitudeEnvelopeParameterRampTime:
+                attackDurationRamp.setRampTime(value, _sampleRate);
+                decayDurationRamp.setRampTime(value, _sampleRate);
+                sustainLevelRamp.setRampTime(value, _sampleRate);
+                releaseDurationRamp.setRampTime(value, _sampleRate);
                 break;
         }
     }
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     float getParameter(AUParameterAddress address) override {
         switch (address) {
             case AKAmplitudeEnvelopeParameterAttackDuration:
@@ -86,40 +86,46 @@ public:
                 return sustainLevelRamp.getTarget();
             case AKAmplitudeEnvelopeParameterReleaseDuration:
                 return releaseDurationRamp.getTarget();
-            case AKAmplitudeEnvelopeParameterRampDuration:
-                return attackDurationRamp.getRampDuration(sampleRate);
-                return decayDurationRamp.getRampDuration(sampleRate);
-                return sustainLevelRamp.getRampDuration(sampleRate);
-                return releaseDurationRamp.getRampDuration(sampleRate);
+            case AKAmplitudeEnvelopeParameterRampTime:
+                return attackDurationRamp.getRampTime(_sampleRate);
+                return decayDurationRamp.getRampTime(_sampleRate);
+                return sustainLevelRamp.getRampTime(_sampleRate);
+                return releaseDurationRamp.getRampTime(_sampleRate);
         }
         return 0;
     }
 
-    void init(int channelCount, double sampleRate) override {
-        AKSoundpipeDSPBase::init(channelCount, sampleRate);
+    void init(int _channels, double _sampleRate) override {
+        AKSoundpipeDSPBase::init(_channels, _sampleRate);
         sp_adsr_create(&_adsr);
     }
 
     void start() override {
         internalGate = 1;
-        isStarted = true;
+        _playing = true;
     }
 
     void stop() override {
         internalGate = 0;
-        isStarted = false;
+        _playing = false;
     }
 
-    void deinit() override {
+    void destroy() {
         sp_adsr_destroy(&_adsr);
+        AKSoundpipeDSPBase::destroy();
     }
 
     void reset() override {
-        sp_adsr_init(sp, _adsr);
+        sp_adsr_init(_sp, _adsr);
         _adsr->atk = 0.1;
         _adsr->dec = 0.1;
         _adsr->sus = 1.0;
         _adsr->rel = 0.1;
+        bool immediate = true;
+        attackDurationRamp.setTarget(0.1, immediate);
+        decayDurationRamp.setTarget(0.1, immediate);
+        sustainLevelRamp.setTarget(1.0, immediate);
+        releaseDurationRamp.setTarget(0.1, immediate);
     }
 
     void process(uint32_t frameCount, uint32_t bufferOffset) override {
@@ -129,21 +135,21 @@ public:
 
             // do ramping every 8 samples
             if ((frameOffset & 0x7) == 0) {
-                attackDurationRamp.advanceTo(now + frameOffset);
-                decayDurationRamp.advanceTo(now + frameOffset);
-                sustainLevelRamp.advanceTo(now + frameOffset);
-                releaseDurationRamp.advanceTo(now + frameOffset);
+                attackDurationRamp.advanceTo(_now + frameOffset);
+                decayDurationRamp.advanceTo(_now + frameOffset);
+                sustainLevelRamp.advanceTo(_now + frameOffset);
+                releaseDurationRamp.advanceTo(_now + frameOffset);
             }
             _adsr->atk = attackDurationRamp.getValue();
             _adsr->dec = decayDurationRamp.getValue();
             _adsr->sus = sustainLevelRamp.getValue();
             _adsr->rel = releaseDurationRamp.getValue();
 
-            sp_adsr_compute(sp, _adsr, &internalGate, &amp);
+            sp_adsr_compute(_sp, _adsr, &internalGate, &amp);
 
-            for (int channel = 0; channel < channelCount; ++channel) {
-                float *in  = (float *)inBufferListPtr->mBuffers[channel].mData  + frameOffset;
-                float *out = (float *)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+            for (int channel = 0; channel < _nChannels; ++channel) {
+                float *in  = (float *)_inBufferListPtr->mBuffers[channel].mData  + frameOffset;
+                float *out = (float *)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
                 *out = *in * amp;
             }
         }

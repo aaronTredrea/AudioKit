@@ -12,7 +12,7 @@ public protocol Aliased {
 }
 
 /// Helpful in reducing repetitive code in AudioKit
-public protocol AUComponent: AnyObject, Aliased {
+public protocol AUComponent: class, Aliased {
     static var ComponentDescription: AudioComponentDescription { get }
 }
 
@@ -35,52 +35,14 @@ extension AKComponent {
         AUAudioUnit.registerSubclass(Self.AKAudioUnitType.self,
                                      as: Self.ComponentDescription,
                                      name: "Local \(Self.self)",
-                                     version: .max)
+                                     version: UInt32.max)
     }
 }
 
 extension AUParameterTree {
-
     public subscript (key: String) -> AUParameter? {
         return value(forKey: key) as? AUParameter
     }
-
-    public class func createParameter(identifier: String,
-                                      name: String,
-                                      address: AUParameterAddress,
-                                      range: ClosedRange<Double>,
-                                      unit: AudioUnitParameterUnit,
-                                      flags: AudioUnitParameterOptions = []) -> AUParameter {
-        return createParameter(withIdentifier: identifier,
-                               name: name,
-                               address: address,
-                               min: AUValue(range.lowerBound),
-                               max: AUValue(range.upperBound),
-                               unit: unit,
-                               unitName: nil,
-                               flags: flags,
-                               valueStrings: nil,
-                               dependentParameters: nil)
-    }
-//
-//    public class func createParameter(identifier: String,
-//                                      name: String,
-//                                      address: AUParameterAddress,
-//                                      min: AUValue,
-//                                      max: AUValue,
-//                                      unit: AudioUnitParameterUnit,
-//                                      flags: AudioUnitParameterOptions = []) -> AUParameter {
-//        return createParameter(withIdentifier: identifier,
-//                               name: name,
-//                               address: address,
-//                               min: min,
-//                               max: max,
-//                               unit: unit,
-//                               unitName: nil,
-//                               flags: flags,
-//                               valueStrings: nil,
-//                               dependentParameters: nil)
-//    }
 }
 
 /// Adding convenience initializers
@@ -90,7 +52,7 @@ extension AudioComponentDescription {
         self.init(componentType: type,
                   componentSubType: subType,
                   componentManufacturer: fourCC("AuKt"),
-                  componentFlags: AudioComponentFlags.sandboxSafe.rawValue,
+                  componentFlags: 0,
                   componentFlagsMask: 0)
     }
 

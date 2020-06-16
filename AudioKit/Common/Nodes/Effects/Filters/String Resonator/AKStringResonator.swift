@@ -20,6 +20,7 @@ open class AKStringResonator: AKNode, AKToggleable, AKComponent, AKInput {
 
     // MARK: - Properties
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var fundamentalFrequencyParameter: AUParameter?
     fileprivate var feedbackParameter: AUParameter?
@@ -36,22 +37,25 @@ open class AKStringResonator: AKNode, AKToggleable, AKComponent, AKInput {
     /// Initial value for Feedback
     public static let defaultFeedback = 0.95
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Fundamental frequency of string.
     @objc open dynamic var fundamentalFrequency: Double = defaultFundamentalFrequency {
         willSet {
-            guard fundamentalFrequency != newValue else { return }
-            if internalAU?.isSetUp == true {
-                fundamentalFrequencyParameter?.value = AUValue(newValue)
+            if fundamentalFrequency == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    fundamentalFrequencyParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.fundamentalFrequency, value: newValue)
         }
     }
@@ -59,12 +63,15 @@ open class AKStringResonator: AKNode, AKToggleable, AKComponent, AKInput {
     /// Feedback amount (value between 0-1). A value close to 1 creates a slower decay and a more pronounced resonance. Small values may leave the input signal unaffected. Depending on the filter frequency, typical values are > .9.
     @objc open dynamic var feedback: Double = defaultFeedback {
         willSet {
-            guard feedback != newValue else { return }
-            if internalAU?.isSetUp == true {
-                feedbackParameter?.value = AUValue(newValue)
+            if feedback == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    feedbackParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.feedback, value: newValue)
         }
     }
@@ -100,7 +107,6 @@ open class AKStringResonator: AKNode, AKToggleable, AKComponent, AKInput {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
             input?.connect(to: strongSelf)
@@ -113,6 +119,18 @@ open class AKStringResonator: AKNode, AKToggleable, AKComponent, AKInput {
 
         fundamentalFrequencyParameter = tree["fundamentalFrequency"]
         feedbackParameter = tree["feedback"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
 
         internalAU?.setParameterImmediately(.fundamentalFrequency, value: fundamentalFrequency)
         internalAU?.setParameterImmediately(.feedback, value: feedback)

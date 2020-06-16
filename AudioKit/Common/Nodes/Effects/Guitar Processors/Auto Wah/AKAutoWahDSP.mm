@@ -9,45 +9,45 @@
 #include "AKAutoWahDSP.hpp"
 #import "AKLinearParameterRamp.hpp"
 
-extern "C" AKDSPRef createAutoWahDSP(int channelCount, double sampleRate) {
-    AKAutoWahDSP *dsp = new AKAutoWahDSP();
-    dsp->init(channelCount, sampleRate);
+extern "C" void* createAutoWahDSP(int nChannels, double sampleRate) {
+    AKAutoWahDSP* dsp = new AKAutoWahDSP();
+    dsp->init(nChannels, sampleRate);
     return dsp;
 }
 
-struct AKAutoWahDSP::InternalData {
-    sp_autowah *autowah0;
-    sp_autowah *autowah1;
+struct AKAutoWahDSP::_Internal {
+    sp_autowah *_autowah0;
+    sp_autowah *_autowah1;
     AKLinearParameterRamp wahRamp;
     AKLinearParameterRamp mixRamp;
     AKLinearParameterRamp amplitudeRamp;
 };
 
-AKAutoWahDSP::AKAutoWahDSP() : data(new InternalData) {
-    data->wahRamp.setTarget(defaultWah, true);
-    data->wahRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->mixRamp.setTarget(defaultMix, true);
-    data->mixRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->amplitudeRamp.setTarget(defaultAmplitude, true);
-    data->amplitudeRamp.setDurationInSamples(defaultRampDurationSamples);
+AKAutoWahDSP::AKAutoWahDSP() : _private(new _Internal) {
+    _private->wahRamp.setTarget(defaultWah, true);
+    _private->wahRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->mixRamp.setTarget(defaultMix, true);
+    _private->mixRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->amplitudeRamp.setTarget(defaultAmplitude, true);
+    _private->amplitudeRamp.setDurationInSamples(defaultRampTimeSamples);
 }
 
 // Uses the ParameterAddress as a key
 void AKAutoWahDSP::setParameter(AUParameterAddress address, AUValue value, bool immediate) {
     switch (address) {
         case AKAutoWahParameterWah:
-            data->wahRamp.setTarget(clamp(value, wahLowerBound, wahUpperBound), immediate);
+            _private->wahRamp.setTarget(clamp(value, wahLowerBound, wahUpperBound), immediate);
             break;
         case AKAutoWahParameterMix:
-            data->mixRamp.setTarget(clamp(value, mixLowerBound, mixUpperBound), immediate);
+            _private->mixRamp.setTarget(clamp(value, mixLowerBound, mixUpperBound), immediate);
             break;
         case AKAutoWahParameterAmplitude:
-            data->amplitudeRamp.setTarget(clamp(value, amplitudeLowerBound, amplitudeUpperBound), immediate);
+            _private->amplitudeRamp.setTarget(clamp(value, amplitudeLowerBound, amplitudeUpperBound), immediate);
             break;
-        case AKAutoWahParameterRampDuration:
-            data->wahRamp.setRampDuration(value, sampleRate);
-            data->mixRamp.setRampDuration(value, sampleRate);
-            data->amplitudeRamp.setRampDuration(value, sampleRate);
+        case AKAutoWahParameterRampTime:
+            _private->wahRamp.setRampTime(value, _sampleRate);
+            _private->mixRamp.setRampTime(value, _sampleRate);
+            _private->amplitudeRamp.setRampTime(value, _sampleRate);
             break;
     }
 }
@@ -56,34 +56,35 @@ void AKAutoWahDSP::setParameter(AUParameterAddress address, AUValue value, bool 
 float AKAutoWahDSP::getParameter(uint64_t address) {
     switch (address) {
         case AKAutoWahParameterWah:
-            return data->wahRamp.getTarget();
+            return _private->wahRamp.getTarget();
         case AKAutoWahParameterMix:
-            return data->mixRamp.getTarget();
+            return _private->mixRamp.getTarget();
         case AKAutoWahParameterAmplitude:
-            return data->amplitudeRamp.getTarget();
-        case AKAutoWahParameterRampDuration:
-            return data->wahRamp.getRampDuration(sampleRate);
+            return _private->amplitudeRamp.getTarget();
+        case AKAutoWahParameterRampTime:
+            return _private->wahRamp.getRampTime(_sampleRate);
     }
     return 0;
 }
 
-void AKAutoWahDSP::init(int channelCount, double sampleRate) {
-    AKSoundpipeDSPBase::init(channelCount, sampleRate);
-    sp_autowah_create(&data->autowah0);
-    sp_autowah_init(sp, data->autowah0);
-    sp_autowah_create(&data->autowah1);
-    sp_autowah_init(sp, data->autowah1);
-    *data->autowah0->wah = defaultWah;
-    *data->autowah1->wah = defaultWah;
-    *data->autowah0->mix = defaultMix;
-    *data->autowah1->mix = defaultMix;
-    *data->autowah0->level = defaultAmplitude;
-    *data->autowah1->level = defaultAmplitude;
+void AKAutoWahDSP::init(int _channels, double _sampleRate) {
+    AKSoundpipeDSPBase::init(_channels, _sampleRate);
+    sp_autowah_create(&_private->_autowah0);
+    sp_autowah_init(_sp, _private->_autowah0);
+    sp_autowah_create(&_private->_autowah1);
+    sp_autowah_init(_sp, _private->_autowah1);
+    *_private->_autowah0->wah = defaultWah;
+    *_private->_autowah1->wah = defaultWah;
+    *_private->_autowah0->mix = defaultMix;
+    *_private->_autowah1->mix = defaultMix;
+    *_private->_autowah0->level = defaultAmplitude;
+    *_private->_autowah1->level = defaultAmplitude;
 }
 
-void AKAutoWahDSP::deinit() {
-    sp_autowah_destroy(&data->autowah0);
-    sp_autowah_destroy(&data->autowah1);
+void AKAutoWahDSP::destroy() {
+    sp_autowah_destroy(&_private->_autowah0);
+    sp_autowah_destroy(&_private->_autowah1);
+    AKSoundpipeDSPBase::destroy();
 }
 
 void AKAutoWahDSP::process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) {
@@ -93,36 +94,35 @@ void AKAutoWahDSP::process(AUAudioFrameCount frameCount, AUAudioFrameCount buffe
 
         // do ramping every 8 samples
         if ((frameOffset & 0x7) == 0) {
-            data->wahRamp.advanceTo(now + frameOffset);
-            data->mixRamp.advanceTo(now + frameOffset);
-            data->amplitudeRamp.advanceTo(now + frameOffset);
+            _private->wahRamp.advanceTo(_now + frameOffset);
+            _private->mixRamp.advanceTo(_now + frameOffset);
+            _private->amplitudeRamp.advanceTo(_now + frameOffset);
         }
 
-        *data->autowah0->wah = data->wahRamp.getValue();
-        *data->autowah1->wah = data->wahRamp.getValue();
-        *data->autowah0->mix = data->mixRamp.getValue() * 100;
-        *data->autowah1->mix = data->mixRamp.getValue() * 100;
-        *data->autowah0->level = data->amplitudeRamp.getValue();
-        *data->autowah1->level = data->amplitudeRamp.getValue();
+        *_private->_autowah0->wah = _private->wahRamp.getValue();
+        *_private->_autowah1->wah = _private->wahRamp.getValue();
+        *_private->_autowah0->mix = _private->mixRamp.getValue() * 100;
+        *_private->_autowah1->mix = _private->mixRamp.getValue() * 100;
+        *_private->_autowah0->level = _private->amplitudeRamp.getValue();
+        *_private->_autowah1->level = _private->amplitudeRamp.getValue();
 
         float *tmpin[2];
         float *tmpout[2];
-        for (int channel = 0; channel < channelCount; ++channel) {
-            float *in  = (float *)inBufferListPtr->mBuffers[channel].mData  + frameOffset;
-            float *out = (float *)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+        for (int channel = 0; channel < _nChannels; ++channel) {
+            float* in  = (float *)_inBufferListPtr->mBuffers[channel].mData  + frameOffset;
+            float* out = (float *)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
             if (channel < 2) {
                 tmpin[channel] = in;
                 tmpout[channel] = out;
             }
-            if (!isStarted) {
+            if (!_playing) {
                 *out = *in;
-                continue;
             }
 
             if (channel == 0) {
-                sp_autowah_compute(sp, data->autowah0, in, out);
+                sp_autowah_compute(_sp, _private->_autowah0, in, out);
             } else {
-                sp_autowah_compute(sp, data->autowah1, in, out);
+                sp_autowah_compute(_sp, _private->_autowah1, in, out);
             }
         }
     }

@@ -11,15 +11,15 @@ import XCTest
 
 class SawtoothWaveTests: AKTestCase {
 
-    let sawtooth = AKOperationGenerator { _ in return AKOperation.sawtoothWave() }
-
     override func setUp() {
-        afterStart = { self.sawtooth.start() }
+        super.setUp()
         duration = 1.0
     }
 
     func testDefault() {
-        output = sawtooth
+        output = AKOperationGenerator { _ in
+            return AKOperation.sawtoothWave()
+        }
         AKTestMD5("1876f099ad6aa4f04c8d2b52ced9a87a")
     }
 

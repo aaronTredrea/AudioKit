@@ -8,9 +8,10 @@ let mixloop = try AKAudioFile(readFileName: "mixloop.wav")
 
 //: Export will be done asynchronously. So you can play some music while exporting
 
-let player = try AKAudioPlayer(file: mixloop)
+let player = AKPlayer(audioFile: mixloop)
 AudioKit.output = player
 try AudioKit.start()
+player.isLooping = false
 player.play()
 
 //: You need a callback that will be triggered as soon as Export has been completed.
@@ -22,20 +23,21 @@ player.play()
 //: If export succeeded, no error will be set (error = nil) and the exported file is returned as an AKAudioFile.
 //: The callback will print some information and replace the file being played with the exported file.
 func callback(processedFile: AKAudioFile?, error: NSError?) {
-    AKLog("Export completed!")
+    print("Export completed!")
 
     // Check if processed file is valid (different from nil)
     if let converted = processedFile {
-        AKLog("Export succeeded, converted file: \(converted.fileNamePlusExtension)")
+        print("Export succeeded, converted file: \(converted.fileNamePlusExtension)")
         // Print the exported file's duration
-        AKLog("Exported File Duration: \(converted.duration) seconds")
+        print("Exported File Duration: \(converted.duration) seconds")
         // Replace the file being played
         try? player.replace(file: converted)
     } else {
         // An error occurred. So, print the Error
-        AKLog("Error: \(error?.localizedDescription)")
+        print("Error: \(error?.localizedDescription)")
     }
 }
+
 //: Next export the mixloop into a compressed .mp4 file :
 mixloop.exportAsynchronously(name: "test", baseDir: .documents, exportFormat: .mp4, callback: callback)
 

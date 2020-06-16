@@ -19,10 +19,10 @@
     var currentIndex = 0
 
     /// Text to display as a label
-    @IBInspectable open var label: String = "Preset"
+    @IBInspectable open var label = "Preset"
 
     /// The presets to scroll through
-    open var presets = [String]()
+    @IBInspectable open var presets = [String]()
 
     /// Function to call when the preset is changed
     open var callback: (String) -> Void
@@ -32,21 +32,21 @@
     @IBInspectable open var fontSize: CGFloat = 24
 
     /// Font
-    open var font: UIFont = UIFont.boldSystemFont(ofSize: 24)
+    @IBInspectable open var font = UIFont.boldSystemFont(ofSize: 24)
 
-    open var bgColor: AKColor? {
+    @IBInspectable open var bgColor: AKColor? {
         didSet {
             setNeedsDisplay()
         }
     }
 
-    open var textColor: AKColor? {
+    @IBInspectable open var textColor: AKColor? {
         didSet {
             setNeedsDisplay()
         }
     }
 
-    open var borderColor: AKColor? {
+    @IBInspectable open var borderColor: AKColor? {
         didSet {
             setNeedsDisplay()
         }
@@ -73,7 +73,7 @@
 
         self.backgroundColor = UIColor.clear
 
-        if self.presets.isNotEmpty && initialIndex < self.presets.count {
+        if !self.presets.isEmpty && initialIndex < self.presets.count {
             isPresetLoaded = true
             self.currentIndex = initialIndex
             setNeedsDisplay()
@@ -81,7 +81,7 @@
     }
 
     /// Initialization with no details
-    public override init(frame: CGRect) {
+    override public init(frame: CGRect) {
         self.callback = { filename in return }
         self.presets = ["Preset One", "Preset Two", "Preset Three"]
 
@@ -92,7 +92,7 @@
     }
 
     /// Initialize in Interface Builder
-    public required init?(coder aDecoder: NSCoder) {
+    required public init?(coder aDecoder: NSCoder) {
         self.callback = { filename in return }
         self.presets = ["Preset One", "Preset Two", "Preset Three"]
 
@@ -104,44 +104,31 @@
 
     // Default background color per theme
     var bgColorForTheme: AKColor {
-        if let bgColor = bgColor {
-            return bgColor
-
-        }
+        if let bgColor = bgColor { return bgColor }
 
         switch AKStylist.sharedInstance.theme {
-        case .basic:
-            return AKColor(white: 0.8, alpha: 1.0)
-        case .midnight:
-            return AKColor(white: 0.7, alpha: 1.0)
+        case .basic: return AKColor(white: 0.8, alpha: 1.0)
+        case .midnight: return AKColor(white: 0.7, alpha: 1.0)
         }
     }
 
     // Default border color per theme
     var borderColorForTheme: AKColor {
-        if let borderColor = borderColor {
-            return borderColor
-        }
+        if let borderColor = borderColor { return borderColor }
 
         switch AKStylist.sharedInstance.theme {
-        case .basic:
-            return AKColor(white: 0.3, alpha: 1.0).withAlphaComponent(0.8)
-        case .midnight:
-            return AKColor.white.withAlphaComponent(0.8)
+        case .basic: return AKColor(white: 0.3, alpha: 1.0).withAlphaComponent(0.8)
+        case .midnight: return AKColor.white.withAlphaComponent(0.8)
         }
     }
 
     // Default text color per theme
     var textColorForTheme: AKColor {
-        if let textColor = textColor {
-            return textColor
-        }
+        if let textColor = textColor { return textColor }
 
         switch AKStylist.sharedInstance.theme {
-        case .basic:
-            return AKColor(white: 0.3, alpha: 1.0)
-        case .midnight:
-            return AKColor.white
+        case .basic: return AKColor(white: 0.3, alpha: 1.0)
+        case .midnight: return AKColor.white
         }
     }
 
@@ -214,78 +201,43 @@
                                                   height: rect.height * 0.5))
 
         //// upInner Drawing
-        let downArrowRect = CGRect(x: rect.width * 0.9,
-                                   y: rect.height * 0.58,
-                                   width: rect.width * 0.07,
-                                   height: rect.height * 0.3)
+        let downArrowRect = CGRect(x: rect.width * 0.9, y: rect.height * 0.58, width: rect.width * 0.07, height: rect.height * 0.3)
         let downInnerPath = UIBezierPath()
-        downInnerPath.move(to: CGPoint(x: downArrowRect.minX + cornerRadius / 2.0,
-                                       y: downArrowRect.minY))
-        downInnerPath.addLine(to: CGPoint(x: downArrowRect.maxX - cornerRadius / 2.0,
-                                          y: downArrowRect.minY))
-        downInnerPath.addCurve(to: CGPoint(x: downArrowRect.maxX - cornerRadius / 2.0,
-                                           y: downArrowRect.minY + cornerRadius / 2.0),
-                               controlPoint1: CGPoint(x: downArrowRect.maxX,
-                                                      y: downArrowRect.minY),
-                               controlPoint2: CGPoint(x: downArrowRect.maxX,
-                                                      y: downArrowRect.minY))
-        downInnerPath.addLine(to: CGPoint(x: downArrowRect.midX + cornerRadius / 2.0,
-                                          y: downArrowRect.maxY - cornerRadius / 2.0))
-        downInnerPath.addCurve(to: CGPoint(x: downArrowRect.midX - cornerRadius / 2.0,
-                                           y: downArrowRect.maxY - cornerRadius / 2.0),
-                               controlPoint1: CGPoint(x: downArrowRect.midX,
-                                                      y: downArrowRect.maxY),
-                               controlPoint2: CGPoint(x: downArrowRect.midX,
-                                                      y: downArrowRect.maxY))
-        downInnerPath.addLine(to: CGPoint(x: downArrowRect.minX + cornerRadius / 2.0,
-                                          y: downArrowRect.minY + cornerRadius / 2.0))
-        downInnerPath.addCurve(to: CGPoint(x: downArrowRect.minX + cornerRadius / 2.0,
-                                           y: downArrowRect.minY),
-                               controlPoint1: CGPoint(x: downArrowRect.minX,
-                                                      y: downArrowRect.minY),
-                               controlPoint2: CGPoint(x: downArrowRect.minX,
-                                                      y: downArrowRect.minY))
+        downInnerPath.move(to: CGPoint(x: downArrowRect.minX + cornerRadius / 2.0, y: downArrowRect.minY))
+        downInnerPath.addLine(to: CGPoint(x: downArrowRect.maxX - cornerRadius / 2.0, y: downArrowRect.minY))
+        downInnerPath.addCurve(to: CGPoint(x: downArrowRect.maxX - cornerRadius / 2.0, y: downArrowRect.minY + cornerRadius / 2.0),
+                               controlPoint1: CGPoint(x: downArrowRect.maxX, y: downArrowRect.minY),
+                               controlPoint2: CGPoint(x: downArrowRect.maxX, y: downArrowRect.minY))
+        downInnerPath.addLine(to: CGPoint(x: downArrowRect.midX + cornerRadius / 2.0, y: downArrowRect.maxY - cornerRadius / 2.0))
+        downInnerPath.addCurve(to: CGPoint(x: downArrowRect.midX - cornerRadius / 2.0, y: downArrowRect.maxY - cornerRadius / 2.0),
+                               controlPoint1: CGPoint(x: downArrowRect.midX, y: downArrowRect.maxY),
+                               controlPoint2: CGPoint(x: downArrowRect.midX, y: downArrowRect.maxY))
+        downInnerPath.addLine(to: CGPoint(x: downArrowRect.minX + cornerRadius / 2.0, y: downArrowRect.minY + cornerRadius / 2.0))
+        downInnerPath.addCurve(to: CGPoint(x: downArrowRect.minX + cornerRadius / 2.0, y: downArrowRect.minY),
+                               controlPoint1: CGPoint(x: downArrowRect.minX, y: downArrowRect.minY),
+                               controlPoint2: CGPoint(x: downArrowRect.minX, y: downArrowRect.minY))
         textColorForTheme.setStroke()
         downInnerPath.lineWidth = borderWidth
         downInnerPath.stroke()
 
-        upOuterPath = UIBezierPath(rect: CGRect(x: rect.width * 0.9,
-                                                y: 0,
-                                                width: rect.width * 0.07,
-                                                height: rect.height * 0.5))
+        upOuterPath = UIBezierPath(rect: CGRect(x: rect.width * 0.9, y: 0, width: rect.width * 0.07, height: rect.height * 0.5))
 
         //// downInner Drawing
-        let upArrowRect = CGRect(x: rect.width * 0.9,
-                                 y: rect.height * 0.12,
-                                 width: rect.width * 0.07,
-                                 height: rect.height * 0.3)
+        let upArrowRect = CGRect(x: rect.width * 0.9, y: rect.height * 0.12, width: rect.width * 0.07, height: rect.height * 0.3)
         let upInnerPath = UIBezierPath()
-        upInnerPath.move(to: CGPoint(x: upArrowRect.minX + cornerRadius / 2.0,
-                                     y: upArrowRect.maxY))
-        upInnerPath.addLine(to: CGPoint(x: upArrowRect.maxX - cornerRadius / 2.0,
-                                        y: upArrowRect.maxY))
-        upInnerPath.addCurve(to: CGPoint(x: upArrowRect.maxX - cornerRadius / 2.0,
-                                         y: upArrowRect.maxY - cornerRadius / 2.0),
-                             controlPoint1: CGPoint(x: upArrowRect.maxX,
-                                                    y: upArrowRect.maxY),
-                             controlPoint2: CGPoint(x: upArrowRect.maxX,
-                                                    y: upArrowRect.maxY))
-        upInnerPath.addLine(to: CGPoint(x: upArrowRect.midX + cornerRadius / 2.0,
-                                        y: upArrowRect.minY + cornerRadius / 2.0))
-        upInnerPath.addCurve(to: CGPoint(x: upArrowRect.midX - cornerRadius / 2.0,
-                                         y: upArrowRect.minY + cornerRadius / 2.0),
-                             controlPoint1: CGPoint(x: upArrowRect.midX,
-                                                    y: upArrowRect.minY),
-                             controlPoint2: CGPoint(x: upArrowRect.midX,
-                                                    y: upArrowRect.minY))
-        upInnerPath.addLine(to: CGPoint(x: upArrowRect.minX + cornerRadius / 2.0,
-                                        y: upArrowRect.maxY - cornerRadius / 2.0))
-        upInnerPath.addCurve(to: CGPoint(x: upArrowRect.minX + cornerRadius / 2.0,
-                                         y: upArrowRect.maxY),
-                             controlPoint1: CGPoint(x: upArrowRect.minX,
-                                                    y: upArrowRect.maxY),
-                             controlPoint2: CGPoint(x: upArrowRect.minX,
-                                                    y: upArrowRect.maxY))
+        upInnerPath.move(to: CGPoint(x: upArrowRect.minX + cornerRadius / 2.0, y: upArrowRect.maxY))
+        upInnerPath.addLine(to: CGPoint(x: upArrowRect.maxX - cornerRadius / 2.0, y: upArrowRect.maxY))
+        upInnerPath.addCurve(to: CGPoint(x: upArrowRect.maxX - cornerRadius / 2.0, y: upArrowRect.maxY - cornerRadius / 2.0),
+                             controlPoint1: CGPoint(x: upArrowRect.maxX, y: upArrowRect.maxY),
+                             controlPoint2: CGPoint(x: upArrowRect.maxX, y: upArrowRect.maxY))
+        upInnerPath.addLine(to: CGPoint(x: upArrowRect.midX + cornerRadius / 2.0, y: upArrowRect.minY + cornerRadius / 2.0))
+        upInnerPath.addCurve(to: CGPoint(x: upArrowRect.midX - cornerRadius / 2.0, y: upArrowRect.minY + cornerRadius / 2.0),
+                             controlPoint1: CGPoint(x: upArrowRect.midX, y: upArrowRect.minY),
+                             controlPoint2: CGPoint(x: upArrowRect.midX, y: upArrowRect.minY))
+        upInnerPath.addLine(to: CGPoint(x: upArrowRect.minX + cornerRadius / 2.0, y: upArrowRect.maxY - cornerRadius / 2.0))
+        upInnerPath.addCurve(to: CGPoint(x: upArrowRect.minX + cornerRadius / 2.0, y: upArrowRect.maxY),
+                             controlPoint1: CGPoint(x: upArrowRect.minX, y: upArrowRect.maxY),
+                             controlPoint2: CGPoint(x: upArrowRect.minX, y: upArrowRect.maxY))
         textColorForTheme.setStroke()
         upInnerPath.lineWidth = borderWidth
         upInnerPath.stroke()
@@ -330,7 +282,7 @@
     }
 
     /// Handle new touches
-    open override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override open func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
 
         if presets.isEmpty {
             return
@@ -362,7 +314,7 @@
     }
 
     /// Handle moved touches
-    open override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override open func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         if presets.isEmpty {
             return
         }

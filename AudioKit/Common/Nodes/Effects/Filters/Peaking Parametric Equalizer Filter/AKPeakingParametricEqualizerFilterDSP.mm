@@ -9,45 +9,45 @@
 #include "AKPeakingParametricEqualizerFilterDSP.hpp"
 #import "AKLinearParameterRamp.hpp"
 
-extern "C" AKDSPRef createPeakingParametricEqualizerFilterDSP(int channelCount, double sampleRate) {
-    AKPeakingParametricEqualizerFilterDSP *dsp = new AKPeakingParametricEqualizerFilterDSP();
-    dsp->init(channelCount, sampleRate);
+extern "C" void* createPeakingParametricEqualizerFilterDSP(int nChannels, double sampleRate) {
+    AKPeakingParametricEqualizerFilterDSP* dsp = new AKPeakingParametricEqualizerFilterDSP();
+    dsp->init(nChannels, sampleRate);
     return dsp;
 }
 
-struct AKPeakingParametricEqualizerFilterDSP::InternalData {
-    sp_pareq *pareq0;
-    sp_pareq *pareq1;
+struct AKPeakingParametricEqualizerFilterDSP::_Internal {
+    sp_pareq *_pareq0;
+    sp_pareq *_pareq1;
     AKLinearParameterRamp centerFrequencyRamp;
     AKLinearParameterRamp gainRamp;
     AKLinearParameterRamp qRamp;
 };
 
-AKPeakingParametricEqualizerFilterDSP::AKPeakingParametricEqualizerFilterDSP() : data(new InternalData) {
-    data->centerFrequencyRamp.setTarget(defaultCenterFrequency, true);
-    data->centerFrequencyRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->gainRamp.setTarget(defaultGain, true);
-    data->gainRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->qRamp.setTarget(defaultQ, true);
-    data->qRamp.setDurationInSamples(defaultRampDurationSamples);
+AKPeakingParametricEqualizerFilterDSP::AKPeakingParametricEqualizerFilterDSP() : _private(new _Internal) {
+    _private->centerFrequencyRamp.setTarget(defaultCenterFrequency, true);
+    _private->centerFrequencyRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->gainRamp.setTarget(defaultGain, true);
+    _private->gainRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->qRamp.setTarget(defaultQ, true);
+    _private->qRamp.setDurationInSamples(defaultRampTimeSamples);
 }
 
 // Uses the ParameterAddress as a key
 void AKPeakingParametricEqualizerFilterDSP::setParameter(AUParameterAddress address, AUValue value, bool immediate) {
     switch (address) {
         case AKPeakingParametricEqualizerFilterParameterCenterFrequency:
-            data->centerFrequencyRamp.setTarget(clamp(value, centerFrequencyLowerBound, centerFrequencyUpperBound), immediate);
+            _private->centerFrequencyRamp.setTarget(clamp(value, centerFrequencyLowerBound, centerFrequencyUpperBound), immediate);
             break;
         case AKPeakingParametricEqualizerFilterParameterGain:
-            data->gainRamp.setTarget(clamp(value, gainLowerBound, gainUpperBound), immediate);
+            _private->gainRamp.setTarget(clamp(value, gainLowerBound, gainUpperBound), immediate);
             break;
         case AKPeakingParametricEqualizerFilterParameterQ:
-            data->qRamp.setTarget(clamp(value, qLowerBound, qUpperBound), immediate);
+            _private->qRamp.setTarget(clamp(value, qLowerBound, qUpperBound), immediate);
             break;
-        case AKPeakingParametricEqualizerFilterParameterRampDuration:
-            data->centerFrequencyRamp.setRampDuration(value, sampleRate);
-            data->gainRamp.setRampDuration(value, sampleRate);
-            data->qRamp.setRampDuration(value, sampleRate);
+        case AKPeakingParametricEqualizerFilterParameterRampTime:
+            _private->centerFrequencyRamp.setRampTime(value, _sampleRate);
+            _private->gainRamp.setRampTime(value, _sampleRate);
+            _private->qRamp.setRampTime(value, _sampleRate);
             break;
     }
 }
@@ -56,36 +56,37 @@ void AKPeakingParametricEqualizerFilterDSP::setParameter(AUParameterAddress addr
 float AKPeakingParametricEqualizerFilterDSP::getParameter(uint64_t address) {
     switch (address) {
         case AKPeakingParametricEqualizerFilterParameterCenterFrequency:
-            return data->centerFrequencyRamp.getTarget();
+            return _private->centerFrequencyRamp.getTarget();
         case AKPeakingParametricEqualizerFilterParameterGain:
-            return data->gainRamp.getTarget();
+            return _private->gainRamp.getTarget();
         case AKPeakingParametricEqualizerFilterParameterQ:
-            return data->qRamp.getTarget();
-        case AKPeakingParametricEqualizerFilterParameterRampDuration:
-            return data->centerFrequencyRamp.getRampDuration(sampleRate);
+            return _private->qRamp.getTarget();
+        case AKPeakingParametricEqualizerFilterParameterRampTime:
+            return _private->centerFrequencyRamp.getRampTime(_sampleRate);
     }
     return 0;
 }
 
-void AKPeakingParametricEqualizerFilterDSP::init(int channelCount, double sampleRate) {
-    AKSoundpipeDSPBase::init(channelCount, sampleRate);
-    sp_pareq_create(&data->pareq0);
-    sp_pareq_init(sp, data->pareq0);
-    sp_pareq_create(&data->pareq1);
-    sp_pareq_init(sp, data->pareq1);
-    data->pareq0->fc = defaultCenterFrequency;
-    data->pareq1->fc = defaultCenterFrequency;
-    data->pareq0->v = defaultGain;
-    data->pareq1->v = defaultGain;
-    data->pareq0->q = defaultQ;
-    data->pareq1->q = defaultQ;
-    data->pareq0->mode = 0;
-    data->pareq1->mode = 0;
+void AKPeakingParametricEqualizerFilterDSP::init(int _channels, double _sampleRate) {
+    AKSoundpipeDSPBase::init(_channels, _sampleRate);
+    sp_pareq_create(&_private->_pareq0);
+    sp_pareq_init(_sp, _private->_pareq0);
+    sp_pareq_create(&_private->_pareq1);
+    sp_pareq_init(_sp, _private->_pareq1);
+    _private->_pareq0->fc = defaultCenterFrequency;
+    _private->_pareq1->fc = defaultCenterFrequency;
+    _private->_pareq0->v = defaultGain;
+    _private->_pareq1->v = defaultGain;
+    _private->_pareq0->q = defaultQ;
+    _private->_pareq1->q = defaultQ;
+    _private->_pareq0->mode = 0;
+    _private->_pareq1->mode = 0;
 }
 
-void AKPeakingParametricEqualizerFilterDSP::deinit() {
-    sp_pareq_destroy(&data->pareq0);
-    sp_pareq_destroy(&data->pareq1);
+void AKPeakingParametricEqualizerFilterDSP::destroy() {
+    sp_pareq_destroy(&_private->_pareq0);
+    sp_pareq_destroy(&_private->_pareq1);
+    AKSoundpipeDSPBase::destroy();
 }
 
 void AKPeakingParametricEqualizerFilterDSP::process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) {
@@ -95,36 +96,35 @@ void AKPeakingParametricEqualizerFilterDSP::process(AUAudioFrameCount frameCount
 
         // do ramping every 8 samples
         if ((frameOffset & 0x7) == 0) {
-            data->centerFrequencyRamp.advanceTo(now + frameOffset);
-            data->gainRamp.advanceTo(now + frameOffset);
-            data->qRamp.advanceTo(now + frameOffset);
+            _private->centerFrequencyRamp.advanceTo(_now + frameOffset);
+            _private->gainRamp.advanceTo(_now + frameOffset);
+            _private->qRamp.advanceTo(_now + frameOffset);
         }
 
-        data->pareq0->fc = data->centerFrequencyRamp.getValue();
-        data->pareq1->fc = data->centerFrequencyRamp.getValue();
-        data->pareq0->v = data->gainRamp.getValue();
-        data->pareq1->v = data->gainRamp.getValue();
-        data->pareq0->q = data->qRamp.getValue();
-        data->pareq1->q = data->qRamp.getValue();
+        _private->_pareq0->fc = _private->centerFrequencyRamp.getValue();
+        _private->_pareq1->fc = _private->centerFrequencyRamp.getValue();
+        _private->_pareq0->v = _private->gainRamp.getValue();
+        _private->_pareq1->v = _private->gainRamp.getValue();
+        _private->_pareq0->q = _private->qRamp.getValue();
+        _private->_pareq1->q = _private->qRamp.getValue();
 
         float *tmpin[2];
         float *tmpout[2];
-        for (int channel = 0; channel < channelCount; ++channel) {
-            float *in  = (float *)inBufferListPtr->mBuffers[channel].mData  + frameOffset;
-            float *out = (float *)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+        for (int channel = 0; channel < _nChannels; ++channel) {
+            float* in  = (float *)_inBufferListPtr->mBuffers[channel].mData  + frameOffset;
+            float* out = (float *)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
             if (channel < 2) {
                 tmpin[channel] = in;
                 tmpout[channel] = out;
             }
-            if (!isStarted) {
+            if (!_playing) {
                 *out = *in;
-                continue;
             }
 
             if (channel == 0) {
-                sp_pareq_compute(sp, data->pareq0, in, out);
+                sp_pareq_compute(_sp, _private->_pareq0, in, out);
             } else {
-                sp_pareq_compute(sp, data->pareq1, in, out);
+                sp_pareq_compute(_sp, _private->_pareq1, in, out);
             }
         }
     }

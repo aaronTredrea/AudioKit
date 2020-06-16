@@ -9,45 +9,45 @@
 #include "AKKorgLowPassFilterDSP.hpp"
 #import "AKLinearParameterRamp.hpp"
 
-extern "C" AKDSPRef createKorgLowPassFilterDSP(int channelCount, double sampleRate) {
-    AKKorgLowPassFilterDSP *dsp = new AKKorgLowPassFilterDSP();
-    dsp->init(channelCount, sampleRate);
+extern "C" void* createKorgLowPassFilterDSP(int nChannels, double sampleRate) {
+    AKKorgLowPassFilterDSP* dsp = new AKKorgLowPassFilterDSP();
+    dsp->init(nChannels, sampleRate);
     return dsp;
 }
 
-struct AKKorgLowPassFilterDSP::InternalData {
-    sp_wpkorg35 *wpkorg350;
-    sp_wpkorg35 *wpkorg351;
+struct AKKorgLowPassFilterDSP::_Internal {
+    sp_wpkorg35 *_wpkorg350;
+    sp_wpkorg35 *_wpkorg351;
     AKLinearParameterRamp cutoffFrequencyRamp;
     AKLinearParameterRamp resonanceRamp;
     AKLinearParameterRamp saturationRamp;
 };
 
-AKKorgLowPassFilterDSP::AKKorgLowPassFilterDSP() : data(new InternalData) {
-    data->cutoffFrequencyRamp.setTarget(defaultCutoffFrequency, true);
-    data->cutoffFrequencyRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->resonanceRamp.setTarget(defaultResonance, true);
-    data->resonanceRamp.setDurationInSamples(defaultRampDurationSamples);
-    data->saturationRamp.setTarget(defaultSaturation, true);
-    data->saturationRamp.setDurationInSamples(defaultRampDurationSamples);
+AKKorgLowPassFilterDSP::AKKorgLowPassFilterDSP() : _private(new _Internal) {
+    _private->cutoffFrequencyRamp.setTarget(defaultCutoffFrequency, true);
+    _private->cutoffFrequencyRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->resonanceRamp.setTarget(defaultResonance, true);
+    _private->resonanceRamp.setDurationInSamples(defaultRampTimeSamples);
+    _private->saturationRamp.setTarget(defaultSaturation, true);
+    _private->saturationRamp.setDurationInSamples(defaultRampTimeSamples);
 }
 
 // Uses the ParameterAddress as a key
 void AKKorgLowPassFilterDSP::setParameter(AUParameterAddress address, AUValue value, bool immediate) {
     switch (address) {
         case AKKorgLowPassFilterParameterCutoffFrequency:
-            data->cutoffFrequencyRamp.setTarget(clamp(value, cutoffFrequencyLowerBound, cutoffFrequencyUpperBound), immediate);
+            _private->cutoffFrequencyRamp.setTarget(clamp(value, cutoffFrequencyLowerBound, cutoffFrequencyUpperBound), immediate);
             break;
         case AKKorgLowPassFilterParameterResonance:
-            data->resonanceRamp.setTarget(clamp(value, resonanceLowerBound, resonanceUpperBound), immediate);
+            _private->resonanceRamp.setTarget(clamp(value, resonanceLowerBound, resonanceUpperBound), immediate);
             break;
         case AKKorgLowPassFilterParameterSaturation:
-            data->saturationRamp.setTarget(clamp(value, saturationLowerBound, saturationUpperBound), immediate);
+            _private->saturationRamp.setTarget(clamp(value, saturationLowerBound, saturationUpperBound), immediate);
             break;
-        case AKKorgLowPassFilterParameterRampDuration:
-            data->cutoffFrequencyRamp.setRampDuration(value, sampleRate);
-            data->resonanceRamp.setRampDuration(value, sampleRate);
-            data->saturationRamp.setRampDuration(value, sampleRate);
+        case AKKorgLowPassFilterParameterRampTime:
+            _private->cutoffFrequencyRamp.setRampTime(value, _sampleRate);
+            _private->resonanceRamp.setRampTime(value, _sampleRate);
+            _private->saturationRamp.setRampTime(value, _sampleRate);
             break;
     }
 }
@@ -56,34 +56,35 @@ void AKKorgLowPassFilterDSP::setParameter(AUParameterAddress address, AUValue va
 float AKKorgLowPassFilterDSP::getParameter(uint64_t address) {
     switch (address) {
         case AKKorgLowPassFilterParameterCutoffFrequency:
-            return data->cutoffFrequencyRamp.getTarget();
+            return _private->cutoffFrequencyRamp.getTarget();
         case AKKorgLowPassFilterParameterResonance:
-            return data->resonanceRamp.getTarget();
+            return _private->resonanceRamp.getTarget();
         case AKKorgLowPassFilterParameterSaturation:
-            return data->saturationRamp.getTarget();
-        case AKKorgLowPassFilterParameterRampDuration:
-            return data->cutoffFrequencyRamp.getRampDuration(sampleRate);
+            return _private->saturationRamp.getTarget();
+        case AKKorgLowPassFilterParameterRampTime:
+            return _private->cutoffFrequencyRamp.getRampTime(_sampleRate);
     }
     return 0;
 }
 
-void AKKorgLowPassFilterDSP::init(int channelCount, double sampleRate) {
-    AKSoundpipeDSPBase::init(channelCount, sampleRate);
-    sp_wpkorg35_create(&data->wpkorg350);
-    sp_wpkorg35_init(sp, data->wpkorg350);
-    sp_wpkorg35_create(&data->wpkorg351);
-    sp_wpkorg35_init(sp, data->wpkorg351);
-    data->wpkorg350->cutoff = defaultCutoffFrequency;
-    data->wpkorg351->cutoff = defaultCutoffFrequency;
-    data->wpkorg350->res = defaultResonance;
-    data->wpkorg351->res = defaultResonance;
-    data->wpkorg350->saturation = defaultSaturation;
-    data->wpkorg351->saturation = defaultSaturation;
+void AKKorgLowPassFilterDSP::init(int _channels, double _sampleRate) {
+    AKSoundpipeDSPBase::init(_channels, _sampleRate);
+    sp_wpkorg35_create(&_private->_wpkorg350);
+    sp_wpkorg35_init(_sp, _private->_wpkorg350);
+    sp_wpkorg35_create(&_private->_wpkorg351);
+    sp_wpkorg35_init(_sp, _private->_wpkorg351);
+    _private->_wpkorg350->cutoff = defaultCutoffFrequency;
+    _private->_wpkorg351->cutoff = defaultCutoffFrequency;
+    _private->_wpkorg350->res = defaultResonance;
+    _private->_wpkorg351->res = defaultResonance;
+    _private->_wpkorg350->saturation = defaultSaturation;
+    _private->_wpkorg351->saturation = defaultSaturation;
 }
 
-void AKKorgLowPassFilterDSP::deinit() {
-    sp_wpkorg35_destroy(&data->wpkorg350);
-    sp_wpkorg35_destroy(&data->wpkorg351);
+void AKKorgLowPassFilterDSP::destroy() {
+    sp_wpkorg35_destroy(&_private->_wpkorg350);
+    sp_wpkorg35_destroy(&_private->_wpkorg351);
+    AKSoundpipeDSPBase::destroy();
 }
 
 void AKKorgLowPassFilterDSP::process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) {
@@ -93,36 +94,35 @@ void AKKorgLowPassFilterDSP::process(AUAudioFrameCount frameCount, AUAudioFrameC
 
         // do ramping every 8 samples
         if ((frameOffset & 0x7) == 0) {
-            data->cutoffFrequencyRamp.advanceTo(now + frameOffset);
-            data->resonanceRamp.advanceTo(now + frameOffset);
-            data->saturationRamp.advanceTo(now + frameOffset);
+            _private->cutoffFrequencyRamp.advanceTo(_now + frameOffset);
+            _private->resonanceRamp.advanceTo(_now + frameOffset);
+            _private->saturationRamp.advanceTo(_now + frameOffset);
         }
 
-        data->wpkorg350->cutoff = data->cutoffFrequencyRamp.getValue() - 0.0001;
-        data->wpkorg351->cutoff = data->cutoffFrequencyRamp.getValue() - 0.0001;
-        data->wpkorg350->res = data->resonanceRamp.getValue();
-        data->wpkorg351->res = data->resonanceRamp.getValue();
-        data->wpkorg350->saturation = data->saturationRamp.getValue();
-        data->wpkorg351->saturation = data->saturationRamp.getValue();
+        _private->_wpkorg350->cutoff = _private->cutoffFrequencyRamp.getValue() - 0.0001;
+        _private->_wpkorg351->cutoff = _private->cutoffFrequencyRamp.getValue() - 0.0001;
+        _private->_wpkorg350->res = _private->resonanceRamp.getValue();
+        _private->_wpkorg351->res = _private->resonanceRamp.getValue();
+        _private->_wpkorg350->saturation = _private->saturationRamp.getValue();
+        _private->_wpkorg351->saturation = _private->saturationRamp.getValue();
 
         float *tmpin[2];
         float *tmpout[2];
-        for (int channel = 0; channel < channelCount; ++channel) {
-            float *in  = (float *)inBufferListPtr->mBuffers[channel].mData  + frameOffset;
-            float *out = (float *)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+        for (int channel = 0; channel < _nChannels; ++channel) {
+            float* in  = (float *)_inBufferListPtr->mBuffers[channel].mData  + frameOffset;
+            float* out = (float *)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
             if (channel < 2) {
                 tmpin[channel] = in;
                 tmpout[channel] = out;
             }
-            if (!isStarted) {
+            if (!_playing) {
                 *out = *in;
-                continue;
             }
 
             if (channel == 0) {
-                sp_wpkorg35_compute(sp, data->wpkorg350, in, out);
+                sp_wpkorg35_compute(_sp, _private->_wpkorg350, in, out);
             } else {
-                sp_wpkorg35_compute(sp, data->wpkorg351, in, out);
+                sp_wpkorg35_compute(_sp, _private->_wpkorg351, in, out);
             }
         }
     }

@@ -13,12 +13,12 @@
 typedef NS_ENUM(AUParameterAddress, AKModalResonanceFilterParameter) {
     AKModalResonanceFilterParameterFrequency,
     AKModalResonanceFilterParameterQualityFactor,
-    AKModalResonanceFilterParameterRampDuration
+    AKModalResonanceFilterParameterRampTime
 };
 
 #ifndef __cplusplus
 
-AKDSPRef createModalResonanceFilterDSP(int channelCount, double sampleRate);
+void* createModalResonanceFilterDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -26,11 +26,12 @@ AKDSPRef createModalResonanceFilterDSP(int channelCount, double sampleRate);
 
 class AKModalResonanceFilterDSP : public AKSoundpipeDSPBase {
 private:
-    struct InternalData;
-    std::unique_ptr<InternalData> data;
+    struct _Internal;
+    std::unique_ptr<_Internal> _private;
  
 public:
     AKModalResonanceFilterDSP();
+    ~AKModalResonanceFilterDSP();
 
     float frequencyLowerBound = 12.0;
     float frequencyUpperBound = 20000.0;
@@ -40,7 +41,7 @@ public:
     float defaultFrequency = 500.0;
     float defaultQualityFactor = 50.0;
 
-    int defaultRampDurationSamples = 10000;
+    int defaultRampTimeSamples = 10000;
 
     // Uses the ParameterAddress as a key
     void setParameter(AUParameterAddress address, float value, bool immediate) override;
@@ -48,9 +49,9 @@ public:
     // Uses the ParameterAddress as a key
     float getParameter(AUParameterAddress address) override;
     
-    void init(int channelCount, double sampleRate) override;
+    void init(int _channels, double _sampleRate) override;
 
-    void deinit() override;
+    void destroy();
 
     void process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) override;
 };

@@ -13,7 +13,4 @@
 @interface AKFrequencyTrackerAudioUnit : AKAudioUnit
 @property (readonly) float amplitude;
 @property (readonly) float frequency;
-- (void)setHopSize:(UInt32)hopSize;
-- (void)setPeakCount:(UInt32)peakCount;
-
 @end

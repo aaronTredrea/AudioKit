@@ -11,6 +11,8 @@
 #include <CoreAudio/CoreAudioTypes.h>
 #include "TPCircularBuffer+Unit.h"
 
+
+
 /**
  @brief Provides synchcronization conversion from render time to "player time".
 
@@ -19,7 +21,7 @@
  the progression of a time in the context of a timeline.  The AudioTimeStamp
  retrieved from the audio thread is constantly incrementing. AKTimeline sets
  a base time that acts as time-zero, giving a reference point with which to
- synchronize with other sources of audio that exibit this behavior.  The timeline
+ syncronize with other sources of audio that exibit this behavior.  The timeline
  supports loop start, and loop duration.  In order to use it, instantiate it with
  function pointer to an AKTimelineCallback function. Then, within an audio render
  callback, or a render notify callback, call AKTimelineRender once per render.
@@ -34,7 +36,7 @@
  */
 
 /**
- A callback with a timeStamp whose mSampleTime represents time in the context
+ A callback with a timeStamp who's mSampleTime represents time in the context
  of the timeline.
  @param refCon User data passed to AKTimeline on init.
  @param timeStamp AudioTimeStamp where mSampleTime reflects the current sample in the
@@ -56,10 +58,12 @@ typedef struct{
     AudioTimeStamp  baseTime;
     AudioTimeStamp  waitStart;
 
+
     UInt32          _loopStart;
     UInt32          _loopEnd;
     AudioTimeStamp  _baseTime;
     AudioTimeStamp  _waitStart;
+
 
     AudioStreamBasicDescription format;
 

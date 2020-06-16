@@ -5,7 +5,7 @@
 //  Created by Ryan Francesconi, revision history on Githbub.
 //  Copyright © 2017 Ryan Francesconi. All rights reserved.
 //
-import AudioKit
+
 import AudioKitUI
 
 /// This is a demo of an Audio Region class. Not for production use... ;)
@@ -87,18 +87,6 @@ public class AKWaveform: AKView {
         }
     }
 
-    public var gain: Float = 1 {
-        didSet {
-            AKLog("Setting gain to \(gain)")
-            guard let data = file?.getWaveformData(withNumberOfPoints: 256) else { return }
-            for i in 0 ..< plots.count {
-                plots[i]?.gain = gain
-                plots[i]?.updateBuffer(data.buffers[i], withBufferSize: data.bufferSize)
-                plots[i]?.redraw()
-            }
-        }
-    }
-
     convenience init?(url: URL, color: NSColor = NSColor.black) {
         self.init()
         file = EZAudioFile(url: url)
@@ -137,7 +125,7 @@ public class AKWaveform: AKView {
         isLooping = false
     }
 
-    private func createPlot(data: UnsafeMutablePointer<Float>, size: UInt32, gain: Float = 1) -> EZAudioPlot {
+    private func createPlot(data: UnsafeMutablePointer<Float>, size: UInt32) -> EZAudioPlot {
         let plot = EZAudioPlot()
         plot.frame = NSRect(x: 0, y: 0, width: 200, height: 20)
         plot.plotType = EZPlotType.buffer
@@ -145,7 +133,7 @@ public class AKWaveform: AKView {
         plot.shouldMirror = true
         plot.color = color
         plot.wantsLayer = true
-        plot.gain = gain // just make it a bit more present looking
+        plot.gain = 1.5 // just make it a bit more present looking
 
         // customize the waveform
         plot.waveformLayer.fillColor = color.cgColor
@@ -207,6 +195,7 @@ public class AKWaveform: AKView {
         super.mouseDown(with: event)
         position = mousePositionToTime(with: event)
         delegate?.waveformSelected(source: self, at: position)
+
     }
 
     public override func mouseUp(with event: NSEvent) {
@@ -233,6 +222,7 @@ public class AKWaveform: AKView {
         plots.removeAll()
         removeFromSuperview()
     }
+
 }
 
 extension AKWaveform: LoopMarkerDelegate {

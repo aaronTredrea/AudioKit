@@ -14,7 +14,7 @@ extension AKAudioFile {
         do {
             try fileSampler.loadAudioFile(self)
         } catch let error as NSError {
-            AKLog("Cannot create sampler: " + error.localizedDescription, log: OSLog.fileHandling, type: .error)
+            AKLog("ERROR AKAudioFile: cannot create sampler: \(error)")
         }
         return fileSampler
     }
@@ -25,7 +25,7 @@ extension AKAudioFile {
         do {
             try fileSampler.loadAudioFile(self)
         } catch let error as NSError {
-            AKLog("Cannot create sampler: " + error.localizedDescription, log: OSLog.fileHandling, type: .error)
+            AKLog("ERROR AKAudioFile: cannot create sampler: \(error)")
         }
         return fileSampler
     }

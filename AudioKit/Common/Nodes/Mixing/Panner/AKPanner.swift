@@ -14,32 +14,31 @@ open class AKPanner: AKNode, AKToggleable, AKComponent, AKInput {
     public static let ComponentDescription = AudioComponentDescription(effect: "pan2")
 
     // MARK: - Properties
+
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var panParameter: AUParameter?
 
-    /// Lower and upper bounds for Pan
-    public static let panRange = -1.0 ... 1.0
-
-    /// Initial value for Pan
-    public static let defaultPan = 0.0
-
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Panning. A value of -1 is hard left, and a value of 1 is hard right, and 0 is center.
-    @objc open dynamic var pan: Double = defaultPan {
+    @objc open dynamic var pan: Double = 0 {
         willSet {
-            guard pan != newValue else { return }
-            if internalAU?.isSetUp == true {
-                panParameter?.value = AUValue(newValue)
+            if pan == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    panParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.pan, value: newValue)
         }
     }
@@ -59,8 +58,7 @@ open class AKPanner: AKNode, AKToggleable, AKComponent, AKInput {
     ///
     @objc public init(
         _ input: AKNode? = nil,
-        pan: Double = defaultPan
-        ) {
+        pan: Double = 0) {
 
         self.pan = pan
 
@@ -72,7 +70,6 @@ open class AKPanner: AKNode, AKToggleable, AKComponent, AKInput {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
             input?.connect(to: strongSelf)
@@ -84,6 +81,18 @@ open class AKPanner: AKNode, AKToggleable, AKComponent, AKInput {
         }
 
         panParameter = tree["pan"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
 
         internalAU?.setParameterImmediately(.pan, value: pan)
     }

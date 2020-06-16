@@ -7,7 +7,7 @@
 //
 
 /// Custom Sporth Unit Generator (Ugen)
-open class AKCustomUgen: NSObject {
+@objc open class AKCustomUgen: NSObject {
 
     /// Name of the Ugen
     @objc public let name: String
@@ -43,7 +43,7 @@ open class AKCustomUgen: NSObject {
                             computeFunction: self.computeFunction)
     }
 
-    /// Execute the compute function
+    /// Executre the compute function
     @objc public let callComputeFunction: @convention(c) (AKCustomUgen) -> Void
         = { ugen in
             ugen.computeFunction(ugen, ugen.stack, &(ugen.userData))

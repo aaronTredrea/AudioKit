@@ -10,8 +10,8 @@
 
 // "Constructor" function for interop with Swift
 
-extern "C" AKDSPRef createAmplitudeEnvelopeDSP(int channelCount, double sampleRate) {
-    AKAmplitudeEnvelopeDSP *dsp = new AKAmplitudeEnvelopeDSP();
-    dsp->init(channelCount, sampleRate);
+extern "C" void* createAmplitudeEnvelopeDSP(int nChannels, double sampleRate) {
+    AKAmplitudeEnvelopeDSP* dsp = new AKAmplitudeEnvelopeDSP();
+    dsp->init(nChannels, sampleRate);
     return dsp;
 }

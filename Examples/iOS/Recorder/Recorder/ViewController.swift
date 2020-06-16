@@ -18,13 +18,15 @@ class ViewController: UIViewController {
     var tape: AKAudioFile!
     var micBooster: AKBooster!
     var moogLadder: AKMoogLadder!
+    var delay: AKDelay!
     var mainMixer: AKMixer!
 
     let mic = AKMicrophone()
 
     var state = State.readyToRecord
 
-    @IBOutlet private var plot: AKNodeOutputPlot?
+    @IBOutlet private var inputPlot: AKNodeOutputPlot!
+    @IBOutlet private var outputPlot: AKOutputWaveformPlot!
     @IBOutlet private weak var infoLabel: UILabel!
     @IBOutlet private weak var resetButton: UIButton!
     @IBOutlet private weak var mainButton: UIButton!
@@ -41,8 +43,11 @@ class ViewController: UIViewController {
 
     }
 
-    required init?(coder aDecoder: NSCoder) {
-        super.init(coder: aDecoder)
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Do any additional setup after loading the view, typically from a nib.
+
+        setupButtonNames()
 
         // Clean tempFiles !
         AKAudioFile.cleanTempDirectory()
@@ -59,8 +64,8 @@ class ViewController: UIViewController {
         AKSettings.defaultToSpeaker = true
 
         // Patching
-        let monoToStereo = AKStereoFieldLimiter(mic, amount: 1)
-        micMixer = AKMixer(monoToStereo)
+        inputPlot.node = mic
+        micMixer = AKMixer(mic)
         micBooster = AKBooster(micMixer)
 
         // Will set the level of microphone monitoring
@@ -82,13 +87,7 @@ class ViewController: UIViewController {
         } catch {
             AKLog("AudioKit did not start!")
         }
-    }
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
-        plot?.node = mic
-        setupButtonNames()
         setupUIForRecording()
     }
 
@@ -114,7 +113,7 @@ class ViewController: UIViewController {
             }
             do {
                 try recorder.record()
-            } catch { AKLog("Errored recording.") }
+            } catch { print("Errored recording.") }
 
         case .recording :
             // Microphone monitoring is muted
@@ -128,24 +127,21 @@ class ViewController: UIViewController {
                                           baseDir: .documents,
                                           exportFormat: .m4a) {_, exportError in
                     if let error = exportError {
-                        AKLog("Export Failed \(error)")
+                        print("Export Failed \(error)")
                     } else {
-                        AKLog("Export succeeded")
+                        print("Export succeeded")
                     }
                 }
-                setupUIForPlaying()
+                setupUIForPlaying ()
             }
         case .readyToPlay :
             player.play()
             infoLabel.text = "Playing..."
             mainButton.setTitle("Stop", for: .normal)
             state = .playing
-            plot?.node = player
-
         case .playing :
             player.stop()
             setupUIForPlaying()
-            plot?.node = mic
         }
     }
 
@@ -154,9 +150,9 @@ class ViewController: UIViewController {
     }
 
     func setupButtonNames() {
-        resetButton.setTitle(Constants.empty, for: UIControl.State.disabled)
-        mainButton.setTitle(Constants.empty, for: UIControl.State.disabled)
-        loopButton.setTitle(Constants.empty, for: UIControl.State.disabled)
+        resetButton.setTitle(Constants.empty, for: UIControlState.disabled)
+        mainButton.setTitle(Constants.empty, for: UIControlState.disabled)
+        loopButton.setTitle(Constants.empty, for: UIControlState.disabled)
     }
 
     func setupUIForRecording () {
@@ -177,7 +173,6 @@ class ViewController: UIViewController {
         resetButton.isHidden = false
         resetButton.isEnabled = true
         setSliders(active: true)
-        moogLadder.cutoffFrequency = frequencySlider.range.upperBound
         frequencySlider.value = moogLadder.cutoffFrequency
         resonanceSlider.value = moogLadder.resonance
     }
@@ -189,8 +184,7 @@ class ViewController: UIViewController {
         frequencySlider.isHidden = !active
         resonanceSlider.callback = updateResonance
         resonanceSlider.isHidden = !active
-        frequencySlider.range = 10 ... 20_000
-        frequencySlider.taper = 3
+        frequencySlider.range = 10 ... 2_000
         moogLadderTitle.text = active ? "Moog Ladder Filter" : Constants.empty
     }
 
@@ -208,10 +202,9 @@ class ViewController: UIViewController {
     }
     @IBAction func resetButtonTouched(sender: UIButton) {
         player.stop()
-        plot?.node = mic
         do {
             try recorder.reset()
-        } catch { AKLog("Errored resetting.") }
+        } catch { print("Errored resetting.") }
 
         //try? player.replaceFile((recorder.audioFile)!)
         setupUIForRecording()
@@ -229,4 +222,8 @@ class ViewController: UIViewController {
         resonanceSlider.format = "%0.3f"
     }
 
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Dispose of any resources that can be recreated.
+    }
 }

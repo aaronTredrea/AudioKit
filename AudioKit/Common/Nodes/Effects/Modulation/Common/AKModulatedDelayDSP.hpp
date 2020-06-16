@@ -15,7 +15,7 @@ typedef NS_ENUM(AUParameterAddress, AKModulatedDelayParameter) {
     AKModulatedDelayParameterDepth,
     AKModulatedDelayParameterFeedback,
     AKModulatedDelayParameterDryWetMix,
-    AKModulatedDelayParameterRampDuration
+    AKModulatedDelayParameterRampTime
 };
 
 // constants
@@ -51,15 +51,20 @@ extern const float kAKFlanger_MaxDryWetMix;
 
 #ifndef __cplusplus
 
-AKDSPRef createChorusDSP(int channelCount, double sampleRate);
-AKDSPRef createFlangerDSP(int channelCount, double sampleRate);
+void* createChorusDSP(int nChannels, double sampleRate);
+void* createFlangerDSP(int nChannels, double sampleRate);
 
 #else
 
-#import "AKModulatedDelay.hpp"
+#import "ModulatedDelay.hpp"
+#import <AudioToolbox/AudioToolbox.h>
+#import <AudioUnit/AudioUnit.h>
+#import <AVFoundation/AVFoundation.h>
 #import "AKLinearParameterRamp.hpp"
 
-struct AKModulatedDelayDSP : AKDSPBase, AKModulatedDelay
+#include <math.h>
+
+struct AKModulatedDelayDSP : AKDSPBase, AudioKitCore::ModulatedDelay
 {
     // ramped parameters
     AKLinearParameterRamp frequencyRamp;
@@ -69,7 +74,7 @@ struct AKModulatedDelayDSP : AKDSPBase, AKModulatedDelay
     
     AKModulatedDelayDSP(AKModulatedDelayType type);
     
-    void init(int channelCount, double sampleRate) override;
+    void init(int nChannels, double sampleRate) override;
     void deinit() override;
     
     void setParameter(uint64_t address, float value, bool immediate) override;

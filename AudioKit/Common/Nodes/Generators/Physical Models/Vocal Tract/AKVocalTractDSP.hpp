@@ -16,14 +16,14 @@ typedef NS_ENUM(AUParameterAddress, AKVocalTractParameter) {
     AKVocalTractParameterTongueDiameter,
     AKVocalTractParameterTenseness,
     AKVocalTractParameterNasality,
-    AKVocalTractParameterRampDuration
+    AKVocalTractParameterRampTime
 };
 
 #import "AKLinearParameterRamp.hpp"  // have to put this here to get it included in umbrella header
 
 #ifndef __cplusplus
 
-AKDSPRef createVocalTractDSP(int channelCount, double sampleRate);
+void* createVocalTractDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -31,7 +31,7 @@ AKDSPRef createVocalTractDSP(int channelCount, double sampleRate);
 
 class AKVocalTractDSP : public AKSoundpipeDSPBase {
 
-    sp_vocwrapper *vocwrapper;
+    sp_vocwrapper *_vocwrapper;
 
 private:
     AKLinearParameterRamp frequencyRamp;
@@ -54,7 +54,7 @@ public:
         nasalityRamp.setDurationInSamples(10000);
     }
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     void setParameter(AUParameterAddress address, float value, bool immediate) override {
         switch (address) {
             case AKVocalTractParameterFrequency:
@@ -72,17 +72,17 @@ public:
             case AKVocalTractParameterNasality:
                 nasalityRamp.setTarget(value, immediate);
                 break;
-            case AKVocalTractParameterRampDuration:
-                frequencyRamp.setRampDuration(value, sampleRate);
-                tonguePositionRamp.setRampDuration(value, sampleRate);
-                tongueDiameterRamp.setRampDuration(value, sampleRate);
-                tensenessRamp.setRampDuration(value, sampleRate);
-                nasalityRamp.setRampDuration(value, sampleRate);
+            case AKVocalTractParameterRampTime:
+                frequencyRamp.setRampTime(value, _sampleRate);
+                tonguePositionRamp.setRampTime(value, _sampleRate);
+                tongueDiameterRamp.setRampTime(value, _sampleRate);
+                tensenessRamp.setRampTime(value, _sampleRate);
+                nasalityRamp.setRampTime(value, _sampleRate);
                 break;
         }
     }
 
-    /// Uses the ParameterAddress as a key
+    /** Uses the ParameterAddress as a key */
     float getParameter(AUParameterAddress address) override {
         switch (address) {
             case AKVocalTractParameterFrequency:
@@ -95,28 +95,27 @@ public:
                 return tensenessRamp.getTarget();
             case AKVocalTractParameterNasality:
                 return nasalityRamp.getTarget();
-            case AKVocalTractParameterRampDuration:
-                return frequencyRamp.getRampDuration(sampleRate);
+            case AKVocalTractParameterRampTime:
+                return frequencyRamp.getRampTime(_sampleRate);
         }
         return 0;
     }
 
-    void init(int channelCount, double sampleRate) override {
-        AKSoundpipeDSPBase::init(channelCount, sampleRate);
+    void init(int _channels, double _sampleRate) override {
+        AKSoundpipeDSPBase::init(_channels, _sampleRate);
 
-        sp_vocwrapper_create(&vocwrapper);
-        sp_vocwrapper_init(sp, vocwrapper);
-        vocwrapper->freq = 160.0;
-        vocwrapper->pos = 0.5;
-        vocwrapper->diam = 1.0;
-        vocwrapper->tenseness = 0.6;
-        vocwrapper->nasal = 0.0;
-
-        isStarted = false;
+        sp_vocwrapper_create(&_vocwrapper);
+        sp_vocwrapper_init(_sp, _vocwrapper);
+        _vocwrapper->freq = 160.0;
+        _vocwrapper->pos = 0.5;
+        _vocwrapper->diam = 1.0;
+        _vocwrapper->tenseness = 0.6;
+        _vocwrapper->nasal = 0.0;
     }
 
-    void deinit() override {
-        sp_vocwrapper_destroy(&vocwrapper);
+    void destroy() {
+        sp_vocwrapper_destroy(&_vocwrapper);
+        AKSoundpipeDSPBase::destroy();
     }
 
 
@@ -127,30 +126,30 @@ public:
 
             // do ramping every 8 samples
             if ((frameOffset & 0x7) == 0) {
-                frequencyRamp.advanceTo(now + frameOffset);
-                tonguePositionRamp.advanceTo(now + frameOffset);
-                tongueDiameterRamp.advanceTo(now + frameOffset);
-                tensenessRamp.advanceTo(now + frameOffset);
-                nasalityRamp.advanceTo(now + frameOffset);
+                frequencyRamp.advanceTo(_now + frameOffset);
+                tonguePositionRamp.advanceTo(_now + frameOffset);
+                tongueDiameterRamp.advanceTo(_now + frameOffset);
+                tensenessRamp.advanceTo(_now + frameOffset);
+                nasalityRamp.advanceTo(_now + frameOffset);
             }
             float frequency = frequencyRamp.getValue();
             float tonguePosition = tonguePositionRamp.getValue();
             float tongueDiameter = tongueDiameterRamp.getValue();
             float tenseness = tensenessRamp.getValue();
             float nasality = nasalityRamp.getValue();
-            vocwrapper->freq = frequency;
-            vocwrapper->pos = tonguePosition;
-            vocwrapper->diam = tongueDiameter;
-            vocwrapper->tenseness = tenseness;
-            vocwrapper->nasal = nasality;
+            _vocwrapper->freq = frequency;
+            _vocwrapper->pos = tonguePosition;
+            _vocwrapper->diam = tongueDiameter;
+            _vocwrapper->tenseness = tenseness;
+            _vocwrapper->nasal = nasality;
 
             float temp = 0;
-            for (int channel = 0; channel < channelCount; ++channel) {
-                float *out = (float *)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+            for (int channel = 0; channel < _nChannels; ++channel) {
+                float* out = (float *)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
 
-                if (isStarted) {
+                if (_playing) {
                     if (channel == 0) {
-                        sp_vocwrapper_compute(sp, vocwrapper, nil, &temp);
+                        sp_vocwrapper_compute(_sp, _vocwrapper, nil, &temp);
                     }
                     *out = temp;
                 } else {

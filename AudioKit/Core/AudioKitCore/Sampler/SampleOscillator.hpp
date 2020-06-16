@@ -10,45 +10,46 @@
 #include <math.h>
 
 #include "SampleBuffer.hpp"
+#include "ADSREnvelope.hpp"
 
 namespace AudioKitCore
 {
 
     struct SampleOscillator
     {
-        bool isLooping;     // true until note released
-        double indexPoint;  // use double so we don't lose precision when indexPoint becomes much larger than increment
-        double increment;   // 1.0 = play at original speed
-        double multiplier;  // multiplier applied to increment for pitch bend, vibrato
+        bool bLooping;      // true until note released
+        double fIndex;      // use double so we don't lose precision when fIndex becomes much larger than fIncrement
+        double fIncrement;  // 1.0 = play at original speed
+        double fIncMul;     // multiplier applied to increment for pitch bend, vibrato
         
-        void setPitchOffsetSemitones(double semitones) { multiplier = pow(2.0, semitones/12.0); }
+        void setPitchOffsetSemitones(double semitones) { fIncMul = pow(2.0, semitones/12.0); }
         
         // return true if we run out of samples
-        inline bool getSample(SampleBuffer *sampleBuffer, int sampleCount, float *output, float gain)
+        inline bool getSample(SampleBuffer* pSampleBuffer, int nSamples, float* pOut, float gain)
         {
-            if (sampleBuffer == NULL || indexPoint > sampleBuffer->endPoint) return true;
-            *output = sampleBuffer->interp(indexPoint, gain);
+            if (pSampleBuffer == NULL || fIndex > pSampleBuffer->fEnd) return true;
+            *pOut = pSampleBuffer->interp(fIndex, gain);
             
-            indexPoint += multiplier * increment;
-            if (sampleBuffer->isLooping && isLooping)
+            fIndex += fIncMul * fIncrement;
+            if (pSampleBuffer->bLoop && bLooping)
             {
-                if (indexPoint > sampleBuffer->loopEndPoint)
-                    indexPoint = indexPoint - sampleBuffer->loopEndPoint + sampleBuffer->loopStartPoint;
+                if (fIndex >= pSampleBuffer->fLoopEnd)
+                    fIndex = fIndex - pSampleBuffer->fLoopEnd + pSampleBuffer->fLoopStart;
             }
             return false;
         }
         
         // return true if we run out of samples
-        inline bool getSamplePair(SampleBuffer *sampleBuffer, int sampleCount, float *leftOutput, float *rightOutput, float gain)
+        inline bool getSamplePair(SampleBuffer* pSampleBuffer, int nSamples, float* pOutLeft, float* pOutRight, float gain)
         {
-            if (sampleBuffer == NULL || indexPoint > sampleBuffer->endPoint) return true;
-            sampleBuffer->interp(indexPoint, leftOutput, rightOutput, gain);
+            if (pSampleBuffer == NULL || fIndex > pSampleBuffer->fEnd) return true;
+            pSampleBuffer->interp(fIndex, pOutLeft, pOutRight, gain);
             
-            indexPoint += multiplier * increment;
-            if (sampleBuffer->isLooping && isLooping)
+            fIndex += fIncMul * fIncrement;
+            if (pSampleBuffer->bLoop && bLooping)
             {
-                if (indexPoint > sampleBuffer->loopEndPoint)
-                    indexPoint = indexPoint - sampleBuffer->loopEndPoint + sampleBuffer->loopStartPoint;
+                if (fIndex >= pSampleBuffer->fLoopEnd)
+                    fIndex = fIndex - pSampleBuffer->fLoopEnd + pSampleBuffer->fLoopStart;
             }
             return false;
         }

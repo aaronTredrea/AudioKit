@@ -16,6 +16,7 @@ open class AKFMOscillator: AKNode, AKToggleable, AKComponent {
     // MARK: - Properties
 
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var waveform: AKTable?
 
@@ -55,22 +56,25 @@ open class AKFMOscillator: AKNode, AKToggleable, AKComponent {
     /// Initial value for Amplitude
     public static let defaultAmplitude = 1.0
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// In cycles per second, or Hz, this is the common denominator for the carrier and modulating frequencies.
     @objc open dynamic var baseFrequency: Double = defaultBaseFrequency {
         willSet {
-            guard baseFrequency != newValue else { return }
-            if internalAU?.isSetUp == true {
-                baseFrequencyParameter?.value = AUValue(newValue)
+            if baseFrequency == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    baseFrequencyParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.baseFrequency, value: newValue)
         }
     }
@@ -78,12 +82,15 @@ open class AKFMOscillator: AKNode, AKToggleable, AKComponent {
     /// This multiplied by the baseFrequency gives the carrier frequency.
     @objc open dynamic var carrierMultiplier: Double = defaultCarrierMultiplier {
         willSet {
-            guard carrierMultiplier != newValue else { return }
-            if internalAU?.isSetUp == true {
-                carrierMultiplierParameter?.value = AUValue(newValue)
+            if carrierMultiplier == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    carrierMultiplierParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.carrierMultiplier, value: newValue)
         }
     }
@@ -91,12 +98,15 @@ open class AKFMOscillator: AKNode, AKToggleable, AKComponent {
     /// This multiplied by the baseFrequency gives the modulating frequency.
     @objc open dynamic var modulatingMultiplier: Double = defaultModulatingMultiplier {
         willSet {
-            guard modulatingMultiplier != newValue else { return }
-            if internalAU?.isSetUp == true {
-                modulatingMultiplierParameter?.value = AUValue(newValue)
+            if modulatingMultiplier == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    modulatingMultiplierParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.modulatingMultiplier, value: newValue)
         }
     }
@@ -104,12 +114,15 @@ open class AKFMOscillator: AKNode, AKToggleable, AKComponent {
     /// This multiplied by the modulating frequency gives the modulation amplitude.
     @objc open dynamic var modulationIndex: Double = defaultModulationIndex {
         willSet {
-            guard modulationIndex != newValue else { return }
-            if internalAU?.isSetUp == true {
-                modulationIndexParameter?.value = AUValue(newValue)
+            if modulationIndex == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    modulationIndexParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.modulationIndex, value: newValue)
         }
     }
@@ -117,12 +130,15 @@ open class AKFMOscillator: AKNode, AKToggleable, AKComponent {
     /// Output Amplitude.
     @objc open dynamic var amplitude: Double = defaultAmplitude {
         willSet {
-            guard amplitude != newValue else { return }
-            if internalAU?.isSetUp == true {
-                amplitudeParameter?.value = AUValue(newValue)
+            if amplitude == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    amplitudeParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.amplitude, value: newValue)
         }
     }
@@ -172,7 +188,6 @@ open class AKFMOscillator: AKNode, AKToggleable, AKComponent {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
             strongSelf.internalAU?.setupWaveform(Int32(waveform.count))
@@ -191,6 +206,18 @@ open class AKFMOscillator: AKNode, AKToggleable, AKComponent {
         modulatingMultiplierParameter = tree["modulatingMultiplier"]
         modulationIndexParameter = tree["modulationIndex"]
         amplitudeParameter = tree["amplitude"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
         internalAU?.setParameterImmediately(.baseFrequency, value: baseFrequency)
         internalAU?.setParameterImmediately(.carrierMultiplier, value: carrierMultiplier)
         internalAU?.setParameterImmediately(.modulatingMultiplier, value: modulatingMultiplier)

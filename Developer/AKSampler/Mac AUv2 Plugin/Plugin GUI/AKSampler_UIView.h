@@ -18,11 +18,7 @@
     IBOutlet NSTextField *pitchOffsetText;
     IBOutlet NSSlider *vibratoDepthSlider;
     IBOutlet NSTextField *vibratoDepthText;
-    IBOutlet NSButton *monoCheckbox;
-    IBOutlet NSButton *legatoCheckbox;
-    IBOutlet NSSlider *glideRateSlider;
-    IBOutlet NSTextField *glideRateText;
-    
+
     IBOutlet NSSlider *ampAttackSlider;
     IBOutlet NSTextField *ampAttackText;
     IBOutlet NSSlider *ampDecaySlider;
@@ -35,8 +31,6 @@
     IBOutlet NSButton *filterEnableCheckbox;
     IBOutlet NSSlider *filterCutoffSlider;
     IBOutlet NSTextField *filterCutoffText;
-    IBOutlet NSSlider *filterEgStrengthSlider;
-    IBOutlet NSTextField *filterEgStrengthText;
     IBOutlet NSSlider *filterResonanceSlider;
     IBOutlet NSTextField *filterResonanceText;
     

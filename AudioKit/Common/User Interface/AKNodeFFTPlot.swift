@@ -5,66 +5,32 @@
 //  Created by Aurelius Prochazka, revision history on Github.
 //  Copyright © 2018 AudioKit. All rights reserved.
 //
-import AudioKit
 
 /// Plot the FFT output from any node in an signal processing graph
 @IBDesignable
 open class AKNodeFFTPlot: EZAudioPlot, EZAudioFFTDelegate {
 
-    public var isConnected = false
-    public var isNotConnected: Bool { return !isConnected }
-
     internal func setupNode(_ input: AKNode?) {
-        if isNotConnected {
-            if fft == nil {
-                fft = EZAudioFFT(maximumBufferSize: vDSP_Length(bufferSize),
-                                 sampleRate: Float(AKSettings.sampleRate),
-                                 delegate: self)
-            }
+        if fft == nil {
+            fft = EZAudioFFT(maximumBufferSize: vDSP_Length(bufferSize),
+                             sampleRate: Float(AKSettings.sampleRate),
+                             delegate: self)
+        }
 
-            input?.avAudioUnitOrNode.installTap(
-                onBus: 0,
-                bufferSize: bufferSize,
-                format: nil) { [weak self] (buffer, _) in
-                    if let strongSelf = self {
-                        buffer.frameLength = strongSelf.bufferSize
-                        let offset = Int(buffer.frameCapacity - buffer.frameLength)
-                        if let tail = buffer.floatChannelData?[0], let existingFFT = strongSelf.fft {
-                            existingFFT.computeFFT(withBuffer: &tail[offset],
-                                                   withBufferSize: strongSelf.bufferSize)
-                        }
+        input?.avAudioNode.installTap(
+            onBus: 0,
+            bufferSize: bufferSize,
+            format: nil) { [weak self] (buffer, _) in
+                if let strongSelf = self {
+                    buffer.frameLength = strongSelf.bufferSize
+                    let offset = Int(buffer.frameCapacity - buffer.frameLength)
+                    if let tail = buffer.floatChannelData?[0], let existingFFT = strongSelf.fft {
+                        existingFFT.computeFFT(withBuffer: &tail[offset],
+                                               withBufferSize: strongSelf.bufferSize)
                     }
-            }
+                }
         }
-        isConnected = true
-    }
 
-    // Useful to reconnect after connecting to Audiobus or IAA
-    @objc func reconnect() {
-        pause()
-        resume()
-    }
-
-    @objc open func pause() {
-        if isConnected {
-            node?.avAudioUnitOrNode.removeTap(onBus: 0)
-            isConnected = false
-        }
-    }
-
-    @objc open func resume() {
-        setupNode(node)
-    }
-
-    private func setupReconnection() {
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(reconnect),
-                                               name: .IAAConnected,
-                                               object: nil)
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(reconnect),
-                                               name: .IAADisconnected,
-                                               object: nil)
     }
 
     internal var bufferSize: UInt32 = 1_024
@@ -73,27 +39,26 @@ open class AKNodeFFTPlot: EZAudioPlot, EZAudioFFTDelegate {
     fileprivate var fft: EZAudioFFT?
 
     /// The node whose output to graph
-    @objc open var node: AKNode? {
+    open var node: AKNode? {
         willSet {
-            pause()
+            node?.avAudioNode.removeTap(onBus: 0)
         }
         didSet {
-            resume()
+            setupNode(node)
         }
     }
 
     deinit {
-        node?.avAudioUnitOrNode.removeTap(onBus: 0)
+        node?.avAudioNode.removeTap(onBus: 0)
     }
 
     /// Required coder-based initialization (for use with Interface Builder)
     ///
     /// - parameter coder: NSCoder
     ///
-    public required init?(coder aDecoder: NSCoder) {
+    required public init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
-        setupNode(AudioKit.output)
-        setupReconnection()
+        setupNode(nil)
     }
 
     /// Initialize the plot with the output from a given node and optional plot size
@@ -109,10 +74,8 @@ open class AKNodeFFTPlot: EZAudioPlot, EZAudioFFTDelegate {
         self.backgroundColor = AKColor.white
         self.shouldCenterYAxis = true
         self.bufferSize = UInt32(bufferSize)
-
         setupNode(input)
-        self.node = input
-        setupReconnection()
+
     }
 
     /// Callback function for FFT data:

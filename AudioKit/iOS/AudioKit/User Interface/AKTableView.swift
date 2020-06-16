@@ -7,7 +7,6 @@
 //
 
 import UIKit
-import AudioKit
 
 /// Displays the values in the table into a nice graph
 public class AKTableView: UIView {
@@ -25,12 +24,12 @@ public class AKTableView: UIView {
     }
 
     /// Required initializer
-    public required init?(coder aDecoder: NSCoder) {
+    required public init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
     /// Draw the table view
-    public override func draw(_ rect: CGRect) {
+    override public func draw(_ rect: CGRect) {
 
         let width = Double(frame.width)
         let height = Double(frame.height) / 2.0
@@ -54,13 +53,13 @@ public class AKTableView: UIView {
         let bezierPath = UIBezierPath()
         bezierPath.move(to: CGPoint(x: 0.0, y: (1.0 - table[0] / absmax) * height))
 
-        for index in 1..<table.count {
+        for i in 1..<table.count {
 
-            let xPoint = Double(index) / table.count * width
+            let x = Double(i) / table.count * width
 
-            let yPoint = (1.0 - table[index] / absmax * padding) * height
+            let y = (1.0 - table[i] / absmax * padding) * height
 
-            bezierPath.addLine(to: CGPoint(x: xPoint, y: yPoint))
+            bezierPath.addLine(to: CGPoint(x: x, y: y))
         }
 
         bezierPath.addLine(to: CGPoint(x: Double(frame.width), y: (1.0 - table[0] / absmax * padding) * height))

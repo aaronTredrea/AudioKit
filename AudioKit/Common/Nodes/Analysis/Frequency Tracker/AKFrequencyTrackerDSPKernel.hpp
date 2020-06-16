@@ -16,8 +16,8 @@ public:
 
     AKFrequencyTrackerDSPKernel() {}
 
-    void init(int channelCount, double sampleRate) override {
-        AKSoundpipeKernel::init(channelCount, sampleRate);
+    void init(int _channels, double _sampleRate) override {
+        AKSoundpipeKernel::init(_channels, _sampleRate);
         sp_ptrack_create(&ptrack);
         sp_ptrack_init(sp, ptrack, hopSize, peakCount);
     }
@@ -80,13 +80,15 @@ public:
     // MARK: Member Variables
 
 private:
+
+    int hopSize = 4096;
+    int peakCount = 20;
+
     sp_ptrack *ptrack = nullptr;
 
 public:
     float trackedAmplitude = 0.0;
     float trackedFrequency = 0.0;
-    int hopSize = 4096;
-    int peakCount = 20;
     bool started = true;
 };
 

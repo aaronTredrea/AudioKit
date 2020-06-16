@@ -53,7 +53,7 @@
 
     // Initialize a default format for the busses.
     AVAudioFormat *defaultFormat = [[AVAudioFormat alloc] initStandardFormatWithSampleRate:AKSettings.sampleRate
-                                                                                  channels:AKSettings.channelCount];
+                                                                                  channels:AKSettings.numberOfChannels];
 
     // Create a DSP kernel to handle the signal processing.
     _kernel.init(defaultFormat.channelCount+2, defaultFormat.sampleRate);
@@ -63,7 +63,7 @@
 
 
     // Create the parameter tree.
-    _parameterTree = [AUParameterTree treeWithChildren:@[
+    _parameterTree = [AUParameterTree createTreeWithChildren:@[
                                                                ]];
 
     // Create the input and output busses.
@@ -91,6 +91,8 @@
     _parameterTree.implementorValueProvider = ^(AUParameter *param) {
         return balancerKernel->getParameter(param.address);
     };
+
+    self.maximumFramesToRender = 512;
 
     return self;
 }
@@ -135,10 +137,10 @@
     __block AUScheduleParameterBlock scheduleParameter = self.scheduleParameterBlock;
 
     // Ramp over 20 milliseconds.
-    __block AUAudioFrameCount rampDuration = AUAudioFrameCount(0.02 * self.outputBus.format.sampleRate);
+    __block AUAudioFrameCount rampTime = AUAudioFrameCount(0.02 * self.outputBus.format.sampleRate);
 
     self.parameterTree.implementorValueObserver = ^(AUParameter *param, AUValue value) {
-        scheduleParameter(AUEventSampleTimeImmediate, rampDuration, param.address, value);
+        scheduleParameter(AUEventSampleTimeImmediate, rampTime, param.address, value);
     };
 
     return YES;

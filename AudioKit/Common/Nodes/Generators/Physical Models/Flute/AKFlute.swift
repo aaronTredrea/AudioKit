@@ -15,26 +15,30 @@ open class AKFlute: AKNode, AKToggleable, AKComponent {
     // MARK: - Properties
 
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var frequencyParameter: AUParameter?
     fileprivate var amplitudeParameter: AUParameter?
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Variable frequency. Values less than the initial frequency will be doubled until it is greater than that.
     @objc open dynamic var frequency: Double = 110 {
         willSet {
-            guard frequency != newValue else { return }
-            if internalAU?.isSetUp == true {
-                frequencyParameter?.value = AUValue(newValue)
+            if frequency == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    frequencyParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.frequency, value: newValue)
         }
     }
@@ -42,12 +46,15 @@ open class AKFlute: AKNode, AKToggleable, AKComponent {
     /// Amplitude
     @objc open dynamic var amplitude: Double = 0.5 {
         willSet {
-            guard amplitude != newValue else { return }
-            if internalAU?.isSetUp == true {
-                amplitudeParameter?.value = AUValue(newValue)
+            if amplitude == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    amplitudeParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.amplitude, value: newValue)
         }
     }
@@ -86,7 +93,6 @@ open class AKFlute: AKNode, AKToggleable, AKComponent {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
         }
@@ -98,6 +104,18 @@ open class AKFlute: AKNode, AKToggleable, AKComponent {
 
         frequencyParameter = tree["frequency"]
         amplitudeParameter = tree["amplitude"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
         internalAU?.setParameterImmediately(.frequency, value: frequency)
         internalAU?.setParameterImmediately(.amplitude, value: amplitude)
     }

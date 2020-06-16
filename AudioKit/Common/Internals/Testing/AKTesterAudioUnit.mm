@@ -42,7 +42,7 @@
 
 - (void)createParameters {
     standardSetup(Tester)
-    _parameterTree = [AUParameterTree treeWithChildren:@[]];
+    _parameterTree = [AUParameterTree createTreeWithChildren:@[]];
     parameterTreeBlock(Tester)
 }
 

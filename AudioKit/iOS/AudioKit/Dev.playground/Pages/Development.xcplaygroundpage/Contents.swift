@@ -1,10 +1,9 @@
 //: Development
 import AudioKit
 
-let osc = AKOscillator()
-osc.amplitude = 0.1
-AudioKit.output = osc
-osc.start()
+let oscillator = AKOscillator()
+AudioKit.output = oscillator
+AudioKit.start()
 
-import PlaygroundSupport
-PlaygroundPage.current.needsIndefiniteExecution = true
+oscillator.start()
+sleep(1)

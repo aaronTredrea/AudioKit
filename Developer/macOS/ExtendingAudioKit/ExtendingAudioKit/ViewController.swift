@@ -59,7 +59,7 @@ extension ViewController: AKMIDIListener {
 
     // MIDI Controller input
     func receivedMIDIController(_ controller: MIDIByte, value: MIDIByte, channel: MIDIChannel) {
-        AKLog("Channel: \(channel + 1) controller: \(controller) value: \(value)")
+        //print("Channel: \(channel+1) controller: \(controller) value: \(value)")
         conductor.controller(controller, value: value)
     }
 
@@ -69,16 +69,16 @@ extension ViewController: AKMIDIListener {
     }
 
     // After touch
-    func receivedMIDIAftertouch(_ pressure: MIDIByte, channel: MIDIChannel) {
-        conductor.aftertouch(pressure)
+    func receivedMIDIAfterTouch(_ pressure: MIDIByte, channel: MIDIChannel) {
+        conductor.afterTouch(pressure)
     }
 
     // MIDI Setup Change
     func receivedMIDISetupChange() {
-        AKLog("midi setup change, midi.inputNames: \(conductor.midi.inputNames)")
+        print("midi setup change, midi.inputNames: \(conductor.midi.inputNames)")
         let inputNames = conductor.midi.inputNames
         inputNames.forEach { inputName in
-            conductor.midi.openInput(name: inputName)
+            conductor.midi.openInput(inputName)
         }
     }
 

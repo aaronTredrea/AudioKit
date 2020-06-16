@@ -16,7 +16,7 @@ public let callbackUgen =
             }
         }
         stack.push(trigger)
-    }
+}
 
 /// Useful metronome class that you can utilize for your own projects
 public class AKMetronome: AKOperationGenerator {
@@ -36,7 +36,7 @@ public class AKMetronome: AKOperationGenerator {
     /// The value of the current beat
     public var currentBeat: Int {
         get { return 1 + Int((parameters[2] + 1).truncatingRemainder(dividingBy: Double(subdivision))) }
-        set { parameters[2] = Double(newValue) }
+        set(newValue) { parameters[2] = Double(newValue) }
     }
 
     /// Function to perform on every tick
@@ -47,7 +47,7 @@ public class AKMetronome: AKOperationGenerator {
     }
 
     /// Initialize the metronome
-    @objc public override init() {
+    @objc public init() {
 
         let sporth = "(0 p) bpm2rate metro (_triggerFunction fe) dup 0.001 0.01 0.001 tenvx swap (1 p) 0 count dup 2 pset 0 eq (4 p) (3 p) branch 0.4 sine * dup"
         callback = { return }

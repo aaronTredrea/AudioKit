@@ -8,7 +8,7 @@
 
 /// Adding description property
 extension AVAudioCommonFormat: CustomStringConvertible {
-
+    
     /// Text version of the format
     public var description: String {
         switch self {
@@ -23,22 +23,22 @@ extension AVAudioCommonFormat: CustomStringConvertible {
         case .pcmFormatInt32:
             return "PCMFormatInt32"
         @unknown default:
-            fatalError("Unknown Type")
+            fatalError("render failed")
         }
     }
 }
 
 /// Helpful additions for using AVAudioFiles within AudioKit
 @objc extension AVAudioFile {
-
+    
     // MARK: - Public Properties
-
+    
     /// The number of samples can be accessed by .length property,
     /// but samplesCount has a less ambiguous meaning
     open var samplesCount: Int64 {
         return length
     }
-
+    
     /// strange that sampleRate is a Double and not an Integer
     open var sampleRate: Double {
         return fileFormat.sampleRate
@@ -47,51 +47,51 @@ extension AVAudioCommonFormat: CustomStringConvertible {
     open var channelCount: UInt32 {
         return fileFormat.channelCount
     }
-
+    
     /// Duration in seconds
     open var duration: Double {
         return Double(samplesCount) / (sampleRate)
     }
-
+    
     /// true if Audio Samples are interleaved
     open var interleaved: Bool {
         return fileFormat.isInterleaved
     }
-
+    
     /// true only if file format is "deinterleaved native-endian float (AVAudioPCMFormatFloat32)"
     open var standard: Bool {
         return fileFormat.isStandard
     }
-
+    
     /// Human-readable version of common format
     open var commonFormatString: String {
         return "\(fileFormat.commonFormat)"
     }
-
+    
     /// the directory path as a URL object
     open var directoryPath: URL {
         return url.deletingLastPathComponent()
     }
-
+    
     /// the file name with extension as a String
     open var fileNamePlusExtension: String {
         return url.lastPathComponent
     }
-
+    
     /// the file name without extension as a String
     open var fileName: String {
         return url.deletingPathExtension().lastPathComponent
     }
-
+    
     /// the file extension as a String (without ".")
     open var fileExt: String {
         return url.pathExtension
     }
-
-    open override var description: String {
+    
+    override open var description: String {
         return super.description + "\n" + String(describing: fileFormat)
     }
-
+    
     /// returns file Mime Type if exists
     /// Otherwise, returns nil
     /// (useful when sending an AKAudioFile by email)
@@ -119,33 +119,33 @@ extension AVAudioCommonFormat: CustomStringConvertible {
             return nil
         }
     }
-
+    
     /// Static function to delete all audiofiles from Temp directory
     ///
     /// AKAudioFile.cleanTempDirectory()
     ///
     public static func cleanTempDirectory() {
         var deletedFilesCount = 0
-
+        
         let fileManager = FileManager.default
         let tempPath = NSTemporaryDirectory()
-
+        
         do {
             let fileNames = try fileManager.contentsOfDirectory(atPath: "\(tempPath)")
-
+            
             // function for deleting files
             func deleteFileWithFileName(_ fileName: String) {
                 let filePathName = "\(tempPath)/\(fileName)"
                 do {
                     try fileManager.removeItem(atPath: filePathName)
-                    AKLog("\"\(fileName)\" deleted.", log: OSLog.fileHandling)
+                    AKLog("\"\(fileName)\" deleted.")
                     deletedFilesCount += 1
                 } catch let error as NSError {
-                    AKLog("Couldn't delete \(fileName) from Temp Directory " + error.localizedDescription,
-                          log: OSLog.fileHandling, type: .error)
+                    AKLog("Couldn't delete \(fileName) from Temp Directory")
+                    AKLog("Error: \(error)")
                 }
             }
-
+            
             // Checks file type (only Audio Files)
             fileNames.forEach { fn in
                 let lower = fn.lowercased()
@@ -155,21 +155,22 @@ extension AVAudioCommonFormat: CustomStringConvertible {
                     deleteFileWithFileName(fn)
                 }
             }
-
-            AKLog("\(deletedFilesCount) files deleted", log: OSLog.fileHandling, type: .error)
-
+            
+            AKLog(deletedFilesCount, "files deleted")
+            
         } catch let error as NSError {
-            AKLog("Couldn't access Temp Directory " + error.localizedDescription, log: OSLog.fileHandling, type: .error)
+            AKLog("Couldn't access Temp Directory")
+            AKLog("Error:", error)
         }
     }
-
+    
 }
 
 /// Audio file, inherits from AVAudioFile and adds functionality
 @objc open class AKAudioFile: AVAudioFile {
-
+    
     // MARK: - embedded enums
-
+    
     /// Common places for files
     ///
     /// - Temp:      Temp Directory
@@ -180,54 +181,51 @@ extension AVAudioCommonFormat: CustomStringConvertible {
     public enum BaseDirectory {
         /// Temporary directory
         case temp
-
+        
         /// Documents directory
         case documents
-
+        
         /// Resources directory
         case resources
-
+        
         /// Same directory as the input file
         case custom
-
+        
         func create(file path: String, write: Bool = false) throws -> String {
-          switch (self, write) {
+            switch (self, write) {
             case (.temp, _):
-              return NSTemporaryDirectory() + path
+                return NSTemporaryDirectory() + path
             case (.documents, _):
-              return NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0] + "/" + path
+                return NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0] + "/" + path
             case (.resources, false):
-              return try Bundle.main.path(forResource: path, ofType: "") ??
-                         NSError.fileCreateError
+                return try Bundle.main.path(forResource: path, ofType: "") ??
+                    NSError.fileCreateError
             case (.custom, _):
-              AKLog("AKAudioFile: custom directory not implemented", log: OSLog.fileHandling, type: .error)
-              fallthrough
+                AKLog("ERROR AKAudioFile: custom creation directory not implemented yet")
+                fallthrough
             default:
-              throw NSError.fileCreateError
-          }
+                throw NSError.fileCreateError
+            }
         }
     }
-
+    
     // MARK: - private vars
-
+    
     // Used for exporting, can be accessed with public .avAsset property
     fileprivate lazy var internalAVAsset: AVURLAsset = {
         AVURLAsset(url: URL(fileURLWithPath: self.url.path))
     }()
-
+    
     // MARK: - open vars
-
+    
     /// Returns an AVAsset from the AKAudioFile
     open var avAsset: AVURLAsset {
         return internalAVAsset
     }
-
-    /// will have a reference to the current export session when exporting async
-    open var currentExportSession: AVAssetExportSession?
-
+    
     // Make our types Human Friendly™
     public typealias FloatChannelData = [[Float]]
-
+    
     /// Returns audio data as an `Array` of `Float` Arrays.
     ///
     /// If stereo:
@@ -238,14 +236,14 @@ extension AVAudioCommonFormat: CustomStringConvertible {
         guard let pcmFloatChannelData = self.pcmBuffer.floatChannelData else {
             return nil
         }
-
+        
         let channelCount = Int(self.pcmBuffer.format.channelCount)
         let frameLength = Int(self.pcmBuffer.frameLength)
         let stride = self.pcmBuffer.stride
-
+        
         // Preallocate our Array so we're not constantly thrashing while resizing as we append.
         var result = Array(repeating: [Float](zeros: frameLength), count: channelCount)
-
+        
         // Loop across our channels...
         for channel in 0..<channelCount {
             // Make sure we go through all of the frames...
@@ -253,53 +251,53 @@ extension AVAudioCommonFormat: CustomStringConvertible {
                 result[channel][sampleIndex] = pcmFloatChannelData[channel][sampleIndex * stride]
             }
         }
-
+        
         return result
     }()
-
+    
     /// returns audio data as an AVAudioPCMBuffer
     open lazy var pcmBuffer: AVAudioPCMBuffer = {
-
+        
         let buffer = AVAudioPCMBuffer(pcmFormat: self.processingFormat,
                                       frameCapacity: AVAudioFrameCount(self.length))
-
+        
         do {
             try self.read(into: buffer!)
         } catch let error as NSError {
-            AKLog("Cannot readIntBuffer " + error.localizedDescription, log: OSLog.fileHandling, type: .error)
+            AKLog("error cannot readIntBuffer, Error: \(error)")
         }
-
+        
         return buffer!
-
+        
     }()
-
+    
     /// returns the peak level expressed in dB ( -> Float).
     open lazy var maxLevel: Float = {
         var maxLev: Float = 0
-
+        
         let buffer = self.pcmBuffer
-
+        
         if self.samplesCount > 0 {
             for c in 0..<Int(self.channelCount) {
                 let floats = UnsafeBufferPointer(start: buffer.floatChannelData?[c], count: Int(buffer.frameLength))
                 let cmax = floats.max()
                 let cmin = floats.min()
-
+                
                 // positive max
                 maxLev = max(cmax ?? maxLev, maxLev)
-
+                
                 // negative max
                 maxLev = -min(abs(cmin ?? -maxLev), -maxLev)
             }
         }
-
+        
         if maxLev == 0 {
             return Float.leastNormalMagnitude
         } else {
             return 10 * log10(maxLev)
         }
     }()
-
+    
     /// Initialize the audio file
     ///
     /// - parameter fileURL: URL of the file
@@ -309,7 +307,7 @@ extension AVAudioCommonFormat: CustomStringConvertible {
     public override init(forReading fileURL: URL) throws {
         try super.init(forReading: fileURL)
     }
-
+    
     /// Initialize the audio file
     ///
     /// - Parameters:
@@ -322,10 +320,10 @@ extension AVAudioCommonFormat: CustomStringConvertible {
     public override init(forReading fileURL: URL,
                          commonFormat format: AVAudioCommonFormat,
                          interleaved: Bool) throws {
-
+        
         try super.init(forReading: fileURL, commonFormat: format, interleaved: interleaved)
     }
-
+    
     /// Initialize the audio file
     ///
     /// From Apple doc: The file type to create is inferred from the file extension of fileURL.
@@ -346,7 +344,7 @@ extension AVAudioCommonFormat: CustomStringConvertible {
     /// - returns: An initialized AKAudioFile for writing, or nil if init failed.
     ///
     public override init(forWriting fileURL: URL,
-                         settings: [String: Any],
+                         settings: [String : Any],
                          commonFormat format: AVAudioCommonFormat,
                          interleaved: Bool) throws {
         try super.init(forWriting: fileURL,
@@ -354,7 +352,7 @@ extension AVAudioCommonFormat: CustomStringConvertible {
                        commonFormat: format,
                        interleaved: interleaved)
     }
-
+    
     /// Super.init inherited from AVAudioFile superclass
     ///
     /// - Parameters:

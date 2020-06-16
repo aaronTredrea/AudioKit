@@ -11,17 +11,16 @@ import XCTest
 
 class SawtoothTests: AKTestCase {
 
-    let sawtooth = AKOperationGenerator { _ in return AKOperation.sawtooth() }
-
     override func setUp() {
-        afterStart = { self.sawtooth.start() }
+        super.setUp()
         duration = 1.0
     }
 
     func testDefault() {
-        output = sawtooth
+        output = AKOperationGenerator { _ in
+            return AKOperation.sawtooth()
+        }
         AKTestMD5("582e76f338bafc30a1a0954313891a5e")
     }
-
 
 }

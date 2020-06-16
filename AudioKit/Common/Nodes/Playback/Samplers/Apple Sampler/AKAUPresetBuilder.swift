@@ -57,10 +57,10 @@ open class AKAUPresetBuilder {
     ///   - dict:           Collection of dictionaries with format as given above
     ///   - path:           Where the AUPreset will be created
     ///   - instrumentName: The name of the AUPreset
-    ///   - attack:         Attack duration in seconds
-    ///   - release:        Release duration in seconds
+    ///   - attack:         Attack time in seconds
+    ///   - release:        Release time in seconds
     ///
-    public static func createAUPreset(dict: [NSMutableDictionary],
+    static public func createAUPreset(dict: [NSMutableDictionary],
                                     path: String,
                                     instrumentName: String,
                                     attack: Double? = 0,
@@ -228,7 +228,7 @@ open class AKAUPresetBuilder {
             try str.write(toFile: path, atomically: false, encoding: String.Encoding.utf8)
         } catch let error as NSError {
             AKLog("Could not write to \(path)")
-            AKLog(error.localizedDescription)
+            AKLog(error)
         }
     }
 
@@ -275,7 +275,7 @@ open class AKAUPresetBuilder {
     ///   - filerefs:    File references XML
     ///   - layers:      Combined xml
     ///
-    public static func buildInstrument(name: String = "Coded Instrument Name",
+    static public func buildInstrument(name: String = "Coded Instrument Name",
                                      connections: String = "",
                                      envelopes: String = "",
                                      filter: String = "",

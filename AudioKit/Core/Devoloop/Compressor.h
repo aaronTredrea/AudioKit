@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "CDelay.h"
+#include "Delay.h"
 #include "pluginconstants.h"
 
 class Compressor {

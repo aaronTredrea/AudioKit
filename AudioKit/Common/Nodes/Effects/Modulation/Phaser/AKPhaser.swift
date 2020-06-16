@@ -16,6 +16,7 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
 
     // MARK: - Properties
     private var internalAU: AKAudioUnitType?
+    private var token: AUParameterObserverToken?
 
     fileprivate var notchMinimumFrequencyParameter: AUParameter?
     fileprivate var notchMaximumFrequencyParameter: AUParameter?
@@ -51,7 +52,7 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
     /// Lower and upper bounds for Inverted
     public static let invertedRange = 0.0 ... 1.0
 
-    /// Lower and upper bounds for Lfo BPM
+    /// Lower and upper bounds for Lfo Bpm
     public static let lfoBPMRange = 24.0 ... 360.0
 
     /// Initial value for Notch Minimum Frequency
@@ -78,25 +79,28 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
     /// Initial value for Inverted
     public static let defaultInverted = 0.0
 
-    /// Initial value for Lfo BPM
+    /// Initial value for Lfo Bpm
     public static let defaultLfoBPM = 30.0
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 
     /// Notch Minimum Frequency
     @objc open dynamic var notchMinimumFrequency: Double = defaultNotchMinimumFrequency {
         willSet {
-            guard notchMinimumFrequency != newValue else { return }
-            if internalAU?.isSetUp == true {
-                notchMinimumFrequencyParameter?.value = AUValue(newValue)
+            if notchMinimumFrequency == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    notchMinimumFrequencyParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.notchMinimumFrequency, value: newValue)
         }
     }
@@ -104,12 +108,15 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
     /// Notch Maximum Frequency
     @objc open dynamic var notchMaximumFrequency: Double = defaultNotchMaximumFrequency {
         willSet {
-            guard notchMaximumFrequency != newValue else { return }
-            if internalAU?.isSetUp == true {
-                notchMaximumFrequencyParameter?.value = AUValue(newValue)
+            if notchMaximumFrequency == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    notchMaximumFrequencyParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.notchMaximumFrequency, value: newValue)
         }
     }
@@ -117,12 +124,15 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
     /// Between 10 and 5000
     @objc open dynamic var notchWidth: Double = defaultNotchWidth {
         willSet {
-            guard notchWidth != newValue else { return }
-            if internalAU?.isSetUp == true {
-                notchWidthParameter?.value = AUValue(newValue)
+            if notchWidth == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    notchWidthParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.notchWidth, value: newValue)
         }
     }
@@ -130,12 +140,15 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
     /// Between 1.1 and 4
     @objc open dynamic var notchFrequency: Double = defaultNotchFrequency {
         willSet {
-            guard notchFrequency != newValue else { return }
-            if internalAU?.isSetUp == true {
-                notchFrequencyParameter?.value = AUValue(newValue)
+            if notchFrequency == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    notchFrequencyParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.notchFrequency, value: newValue)
         }
     }
@@ -143,12 +156,15 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
     /// Direct or Vibrato (default)
     @objc open dynamic var vibratoMode: Double = defaultVibratoMode {
         willSet {
-            guard vibratoMode != newValue else { return }
-            if internalAU?.isSetUp == true {
-                vibratoModeParameter?.value = AUValue(newValue)
+            if vibratoMode == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    vibratoModeParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.vibratoMode, value: newValue)
         }
     }
@@ -156,12 +172,15 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
     /// Between 0 and 1
     @objc open dynamic var depth: Double = defaultDepth {
         willSet {
-            guard depth != newValue else { return }
-            if internalAU?.isSetUp == true {
-                depthParameter?.value = AUValue(newValue)
+            if depth == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    depthParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.depth, value: newValue)
         }
     }
@@ -169,12 +188,15 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
     /// Between 0 and 1
     @objc open dynamic var feedback: Double = defaultFeedback {
         willSet {
-            guard feedback != newValue else { return }
-            if internalAU?.isSetUp == true {
-                feedbackParameter?.value = AUValue(newValue)
+            if feedback == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    feedbackParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.feedback, value: newValue)
         }
     }
@@ -182,12 +204,15 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
     /// 1 or 0
     @objc open dynamic var inverted: Double = defaultInverted {
         willSet {
-            guard inverted != newValue else { return }
-            if internalAU?.isSetUp == true {
-                invertedParameter?.value = AUValue(newValue)
+            if inverted == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    invertedParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.inverted, value: newValue)
         }
     }
@@ -195,12 +220,15 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
     /// Between 24 and 360
     @objc open dynamic var lfoBPM: Double = defaultLfoBPM {
         willSet {
-            guard lfoBPM != newValue else { return }
-            if internalAU?.isSetUp == true {
-                lfoBPMParameter?.value = AUValue(newValue)
+            if lfoBPM == newValue {
                 return
             }
-
+            if internalAU?.isSetUp ?? false {
+                if let existingToken = token {
+                    lfoBPMParameter?.setValue(Float(newValue), originator: existingToken)
+                    return
+                }
+            }
             internalAU?.setParameterImmediately(.lfoBPM, value: newValue)
         }
     }
@@ -257,7 +285,6 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
                 AKLog("Error: self is nil")
                 return
             }
-            strongSelf.avAudioUnit = avAudioUnit
             strongSelf.avAudioNode = avAudioUnit
             strongSelf.internalAU = avAudioUnit.auAudioUnit as? AKAudioUnitType
             input?.connect(to: strongSelf)
@@ -277,6 +304,18 @@ open class AKPhaser: AKNode, AKToggleable, AKComponent, AKInput {
         feedbackParameter = tree["feedback"]
         invertedParameter = tree["inverted"]
         lfoBPMParameter = tree["lfoBPM"]
+
+        token = tree.token(byAddingParameterObserver: { [weak self] _, _ in
+
+            guard let _ = self else {
+                AKLog("Unable to create strong reference to self")
+                return
+            } // Replace _ with strongSelf if needed
+            DispatchQueue.main.async {
+                // This node does not change its own values so we won't add any
+                // value observing, but if you need to, this is where that goes.
+            }
+        })
 
         internalAU?.setParameterImmediately(.notchMinimumFrequency, value: notchMinimumFrequency)
         internalAU?.setParameterImmediately(.notchMaximumFrequency, value: notchMaximumFrequency)

@@ -23,10 +23,10 @@ open class SDBooster: AKNode, AKToggleable, AKComponent, AKInput {
     fileprivate var leftGainParameter: AUParameter?
     fileprivate var rightGainParameter: AUParameter?
 
-    /// Ramp Duration represents the speed at which parameters are allowed to change
-    @objc open dynamic var rampDuration: Double = AKSettings.rampDuration {
+    /// Ramp Time represents the speed at which parameters are allowed to change
+    @objc open dynamic var rampTime: Double = AKSettings.rampTime {
         willSet {
-            internalAU?.rampDuration = newValue
+            internalAU?.rampTime = newValue
         }
     }
 

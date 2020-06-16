@@ -13,12 +13,12 @@
 typedef NS_ENUM(AUParameterAddress, AKStringResonatorParameter) {
     AKStringResonatorParameterFundamentalFrequency,
     AKStringResonatorParameterFeedback,
-    AKStringResonatorParameterRampDuration
+    AKStringResonatorParameterRampTime
 };
 
 #ifndef __cplusplus
 
-AKDSPRef createStringResonatorDSP(int channelCount, double sampleRate);
+void* createStringResonatorDSP(int nChannels, double sampleRate);
 
 #else
 
@@ -26,11 +26,12 @@ AKDSPRef createStringResonatorDSP(int channelCount, double sampleRate);
 
 class AKStringResonatorDSP : public AKSoundpipeDSPBase {
 private:
-    struct InternalData;
-    std::unique_ptr<InternalData> data;
+    struct _Internal;
+    std::unique_ptr<_Internal> _private;
  
 public:
     AKStringResonatorDSP();
+    ~AKStringResonatorDSP();
 
     float fundamentalFrequencyLowerBound = 12.0;
     float fundamentalFrequencyUpperBound = 10000.0;
@@ -40,7 +41,7 @@ public:
     float defaultFundamentalFrequency = 100;
     float defaultFeedback = 0.95;
 
-    int defaultRampDurationSamples = 10000;
+    int defaultRampTimeSamples = 10000;
 
     // Uses the ParameterAddress as a key
     void setParameter(AUParameterAddress address, float value, bool immediate) override;
@@ -48,9 +49,9 @@ public:
     // Uses the ParameterAddress as a key
     float getParameter(AUParameterAddress address) override;
     
-    void init(int channelCount, double sampleRate) override;
+    void init(int _channels, double _sampleRate) override;
 
-    void deinit() override;
+    void destroy();
 
     void process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) override;
 };

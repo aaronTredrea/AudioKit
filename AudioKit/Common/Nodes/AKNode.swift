@@ -8,54 +8,37 @@
 
 extension AVAudioConnectionPoint {
     convenience init(_ node: AKNode, to bus: Int) {
-        self.init(node: node.avAudioUnitOrNode, bus: bus)
+        self.init(node: node.avAudioNode, bus: bus)
     }
 }
 
 /// Parent class for all nodes in AudioKit
 @objc open class AKNode: NSObject {
+
     /// The internal AVAudioEngine AVAudioNode
-    @objc open var avAudioNode: AVAudioNode
-
-    /// The internal AVAudioUnit, which is a subclass of AVAudioNode with more capabilities
-    @objc open var avAudioUnit: AVAudioUnit?
-
-    /// Returns either the avAudioUnit or avAudioNode (prefers the avAudioUnit if it exists)
-    @objc open var avAudioUnitOrNode: AVAudioNode {
-        return self.avAudioUnit ?? self.avAudioNode
-    }
+    open var avAudioNode: AVAudioNode
 
     /// Create the node
-    public override init() {
+    override public init() {
         self.avAudioNode = AVAudioNode()
     }
 
-    /// Initialize the node from an AVAudioUnit
-    @objc public init(avAudioUnit: AVAudioUnit, attach: Bool = false) {
-        self.avAudioUnit = avAudioUnit
-        self.avAudioNode = avAudioUnit
-        if attach {
-            AudioKit.engine.attach(avAudioUnit)
-        }
-    }
-
-    /// Initialize the node from an AVAudioNode
+    /// Initialize the node
     @objc public init(avAudioNode: AVAudioNode, attach: Bool = false) {
         self.avAudioNode = avAudioNode
         if attach {
             AudioKit.engine.attach(avAudioNode)
         }
     }
-
-    // Subclasses should override to detach all internal nodes
+    //Subclasses should override to detach all internal nodes
     open func detach() {
-        AudioKit.detach(nodes: [self.avAudioUnitOrNode])
+        AudioKit.detach(nodes: [avAudioNode])
     }
 }
 
 extension AKNode: AKOutput {
     public var outputNode: AVAudioNode {
-        return self.avAudioUnitOrNode
+        return avAudioNode
     }
 
     @available(*, deprecated, renamed: "connect(to:bus:)")
@@ -64,14 +47,15 @@ extension AKNode: AKOutput {
     }
 }
 
-// Deprecated
+//Deprecated
 extension AKNode {
+
     @objc @available(*, deprecated, renamed: "detach")
     open func disconnect() {
-        self.detach()
+        detach()
     }
 
-    @available(*, deprecated, message: "Use AudioKit.detach(nodes:) instead")
+    @available(*, deprecated, message: "Use AudioKit.dettach(nodes:) instead")
     open func disconnect(nodes: [AVAudioNode]) {
         AudioKit.detach(nodes: nodes)
     }
@@ -79,13 +63,14 @@ extension AKNode {
 
 /// Protocol for responding to play and stop of MIDI notes
 public protocol AKPolyphonic {
+
     /// Play a sound corresponding to a MIDI note
     ///
     /// - Parameters:
     ///   - noteNumber: MIDI Note Number
     ///   - velocity:   MIDI Velocity
     ///   - frequency:  Play this frequency
-    func play(noteNumber: MIDINoteNumber, velocity: MIDIVelocity, frequency: Double, channel: MIDIChannel)
+    func play(noteNumber: MIDINoteNumber, velocity: MIDIVelocity, frequency: Double)
 
     /// Play a sound corresponding to a MIDI note
     ///
@@ -93,7 +78,7 @@ public protocol AKPolyphonic {
     ///   - noteNumber: MIDI Note Number
     ///   - velocity:   MIDI Velocity
     ///
-    func play(noteNumber: MIDINoteNumber, velocity: MIDIVelocity, channel: MIDIChannel)
+    func play(noteNumber: MIDINoteNumber, velocity: MIDIVelocity)
 
     /// Stop a sound corresponding to a MIDI note
     ///
@@ -104,6 +89,7 @@ public protocol AKPolyphonic {
 
 /// Bare bones implementation of AKPolyphonic protocol
 @objc open class AKPolyphonicNode: AKNode, AKPolyphonic {
+
     /// Global tuning table used by AKPolyphonicNode (AKNode classes adopting AKPolyphonic protocol)
     @objc public static var tuningTable = AKTuningTable()
     open var midiInstrument: AVAudioUnitMIDIInstrument?
@@ -115,12 +101,8 @@ public protocol AKPolyphonic {
     ///   - velocity:   MIDI Velocity
     ///   - frequency:  Play this frequency
     ///
-    @objc open func play(noteNumber: MIDINoteNumber,
-                         velocity: MIDIVelocity,
-                         frequency: Double,
-                         channel: MIDIChannel = 0) {
-        AKLog("Playing note: \(noteNumber), velocity: \(velocity), frequency: \(frequency), channel: \(channel), " +
-            "override in subclass")
+    @objc open func play(noteNumber: MIDINoteNumber, velocity: MIDIVelocity, frequency: Double) {
+        AKLog("Playing note: \(noteNumber), velocity: \(velocity), frequency: \(frequency), override in subclass")
     }
 
     /// Play a sound corresponding to a MIDI note
@@ -129,13 +111,13 @@ public protocol AKPolyphonic {
     ///   - noteNumber: MIDI Note Number
     ///   - velocity:   MIDI Velocity
     ///
-    @objc open func play(noteNumber: MIDINoteNumber, velocity: MIDIVelocity, channel: MIDIChannel = 0) {
-        // MARK: Microtonal pitch lookup
+    @objc open func play(noteNumber: MIDINoteNumber, velocity: MIDIVelocity) {
 
+        // MARK: Microtonal pitch lookup
         // default implementation is 12 ET
         let frequency = AKPolyphonicNode.tuningTable.frequency(forNoteNumber: noteNumber)
         //        AKLog("Playing note: \(noteNumber), velocity: \(velocity), using tuning table frequency: \(frequency)")
-        self.play(noteNumber: noteNumber, velocity: velocity, frequency: frequency, channel: channel)
+        self.play(noteNumber: noteNumber, velocity: velocity, frequency: frequency)
     }
 
     /// Stop a sound corresponding to a MIDI note
@@ -144,10 +126,6 @@ public protocol AKPolyphonic {
     ///
     @objc open func stop(noteNumber: MIDINoteNumber) {
         AKLog("Stopping note \(noteNumber), override in subclass")
-    }
-
-    deinit {
-        detach()
     }
 }
 
@@ -165,28 +143,29 @@ public protocol AKPolyphonic {
 
 /// Default functions for nodes that conform to AKToggleable
 public extension AKToggleable {
+
     /// Synonym for isStarted that may make more sense with musical instruments
-    var isPlaying: Bool {
+     var isPlaying: Bool {
         return isStarted
     }
 
     /// Antonym for isStarted
-    var isStopped: Bool {
+     var isStopped: Bool {
         return !isStarted
     }
 
     /// Antonym for isStarted that may make more sense with effects
-    var isBypassed: Bool {
+     var isBypassed: Bool {
         return !isStarted
     }
 
     /// Synonym to start that may more more sense with musical instruments
-    func play() {
+     func play() {
         start()
     }
 
     /// Synonym for stop that may make more sense with effects
-    func bypass() {
+     func bypass() {
         stop()
     }
 }

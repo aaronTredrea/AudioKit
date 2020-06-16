@@ -23,6 +23,4 @@ try AudioKit.start()
 oscillator.start()
 
 sleep(1)
-
-oscillator.stop()
 //: [TOC](Table%20Of%20Contents) | [Previous](@previous) | [Next](@next)

@@ -7,7 +7,6 @@
 //
 
 import UIKit
-import AudioKit
 
 @IBDesignable open class AKPropertyControl: UIView {
 
@@ -17,10 +16,10 @@ import AudioKit
         var index = 0
         var minimum: Double = 1_000_000
 
-        for discreteValueIndex in 0 ..< discreteValues.count {
-            if abs(discreteValues[discreteValueIndex] - userValue) < minimum {
-                minimum = abs(discreteValues[discreteValueIndex] - userValue)
-                index = discreteValueIndex
+        for i in 0 ..< discreteValues.count {
+            if abs(discreteValues[i] - userValue) < minimum {
+                minimum = abs(discreteValues[i] - userValue)
+                index = i
             }
         }
         return discreteValues[index]
@@ -30,7 +29,7 @@ import AudioKit
     @IBInspectable public var value: Double = 0 {
         didSet {
             value = range.clamp(value)
-            if discreteValues.isNotEmpty {
+            if discreteValues.count > 0 {
                 value = closest(to: value)
             }
 
@@ -65,7 +64,7 @@ import AudioKit
     public var callback: ((Double) -> Void) = { _ in }
 
     // Only integer
-    public var discreteValues: [Double]  = []
+    @IBInspectable public var discreteValues: [Double]  = []
 
     // Current dragging state, used to show/hide the value bubble
     public var isDragging: Bool = false
@@ -94,11 +93,8 @@ import AudioKit
         setNeedsDisplay()
     }
 
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-    }
     /// Initialization within Interface Builder
-    public required init?(coder: NSCoder) {
+    required public init?(coder: NSCoder) {
         super.init(coder: coder)
     }
 
@@ -107,13 +103,13 @@ import AudioKit
     }
 
     /// Handle new touches
-    open override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override open func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         isDragging = true
         touchesMoved(touches, with: event)
     }
 
     /// Handle moved touches
-    open override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    override open func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         setNeedsDisplay()
     }
 

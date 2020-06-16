@@ -1,184 +1,126 @@
 //
-// ParameterRamper.cpp
-// AudioKit
+//  ParameterRamper.cpp
+//  AudioKit
 //
-// Utility class to manage DSP parameters which can change value smoothly (be ramped) while rendering, without introducing clicks or other distortion into the signal.
-//
-// Originally based on Apple sample code, but significantly altered by Aurelius Prochazka
-//
-//  Copyright © 2020 AudioKit. All rights reserved.
+//  Created by Stéphane Peter, revision history on Githbub.
+//  Copyright © 2018 AudioKit. All rights reserved.
 //
 
 #import <cstdint>
 
 #include "ParameterRamper.hpp"
 
-#import <AudioToolbox/AUAudioUnit.h>
 #import <libkern/OSAtomic.h>
 #import <stdatomic.h>
-#include <math.h>
 
-struct ParameterRamper::InternalData {
+struct ParameterRamper::_Internal
+{
     float clampLow, clampHigh;
-    float uiValue;
-    float taper = 1;
-    float skew = 0;
-    uint32_t offset = 0;
-    float startingPoint;
-    float goal;
-    uint32_t duration;
+    float _uiValue;
+    float _goal;
+    float inverseSlope;
     uint32_t samplesRemaining;
     volatile atomic_int changeCounter = 0;
     int32_t updateCounter = 0;
 };
 
-ParameterRamper::ParameterRamper(float value) : data(new InternalData)
-{
+ParameterRamper::ParameterRamper(float value) : _private(new _Internal) {
     setImmediate(value);
 }
 
-ParameterRamper::~ParameterRamper()
-{
-    delete data;
+ParameterRamper::~ParameterRamper() {
+    delete _private;
 }
 
-void ParameterRamper::setImmediate(float value)
-{
+void ParameterRamper::setImmediate(float value) {
     // only to be called from the render thread or when resources are not allocated.
-    data->goal = data->uiValue = data->startingPoint = value;
-    data->samplesRemaining = 0;
+    _private->_goal = _private->_uiValue = value;
+    _private->inverseSlope = 0.0;
+    _private->samplesRemaining = 0;
 }
 
-void ParameterRamper::init()
-{
+void ParameterRamper::init() {
     /*
      Call this from the kernel init.
      Updates the internal value from the UI value.
      */
-    setImmediate(data->uiValue);
+    setImmediate(_private->_uiValue);
 }
 
-void ParameterRamper::reset()
-{
-    data->changeCounter = data->updateCounter = 0;
+void ParameterRamper::reset() {
+    _private->changeCounter = _private->updateCounter = 0;
 }
 
-void ParameterRamper::setTaper(float taper)
-{
-    data->taper = taper;
-    atomic_fetch_add(&data->changeCounter, 1);
+void ParameterRamper::setUIValue(float value) {
+    _private->_uiValue = value;
+    atomic_fetch_add(&_private->changeCounter, 1);
 }
 
-float ParameterRamper::getTaper() const
-{
-    return data->taper;
-}
-
-void ParameterRamper::setSkew(float skew)
-{
-    if (skew > 1) {
-        skew = 1.0;
-    }
-    if (skew < 0) {
-        skew = 0.0;
-    }
-    data->skew = skew;
-    atomic_fetch_add(&data->changeCounter, 1);
-}
-
-float ParameterRamper::getSkew() const
-{
-    return data->skew;
-}
-
-void ParameterRamper::setOffset(uint32_t offset)
-{
-    if (offset < 0) {
-        offset = 0;
-    }
-    data->offset = offset;
-    atomic_fetch_add(&data->changeCounter, 1);
-}
-
-uint32_t ParameterRamper::getOffset() const
-{
-    return data->offset;
-}
-
-void ParameterRamper::setUIValue(float value)
-{
-    data->uiValue = value;
-    atomic_fetch_add(&data->changeCounter, 1);
-}
-
-float ParameterRamper::getUIValue() const
-{
-    return data->uiValue;
+float ParameterRamper::getUIValue() const {
+    return _private->_uiValue;
 }
 
 void ParameterRamper::dezipperCheck(uint32_t rampDuration)
 {
     // check to see if the UI has changed and if so, start a ramp to dezipper it.
-    int32_t changeCounterSnapshot = data->changeCounter;
-    if (data->updateCounter != changeCounterSnapshot) {
-        data->updateCounter = changeCounterSnapshot;
-        startRamp(data->uiValue, rampDuration);
+    int32_t changeCounterSnapshot = _private->changeCounter;
+    if (_private->updateCounter != changeCounterSnapshot) {
+        _private->updateCounter = changeCounterSnapshot;
+        startRamp(_private->_uiValue, rampDuration);
     }
 }
 
-void ParameterRamper::startRamp(float newGoal, uint32_t duration)
-{
+void ParameterRamper::startRamp(float newGoal, uint32_t duration) {
     if (duration == 0) {
         setImmediate(newGoal);
-    } else {
-        data->startingPoint = data->uiValue;
-        data->duration = duration;
-        data->samplesRemaining = duration - data->offset;
-        data->goal = data->uiValue = newGoal;
+    }
+    else {
+        /*
+         Set a new ramp.
+         Assigning to inverseSlope must come before assigning to goal.
+         */
+        _private->inverseSlope = (get() - newGoal) / float(duration);
+        _private->samplesRemaining = duration;
+        _private->_goal = _private->_uiValue = newGoal;
     }
 }
 
-float ParameterRamper::get() const
-{
-    float x = float(data->duration - data->samplesRemaining) / float(data->duration);
-    float taper1 = data->startingPoint + (data->goal - data->startingPoint) * pow(x, abs(data->taper));
-
-    float absxm1 = abs(float(data->duration - data->samplesRemaining) / float(data->duration) - 1.0);
-
-    float taper2 = data->startingPoint + (data->goal - data->startingPoint) * (1.0 - pow(absxm1, 1.0 / abs(data->taper)));
-
-    return taper1 * (1.0 - data->skew) + taper2 * data->skew;
+float ParameterRamper::get() const {
+    /*
+     For long ramps, integrating a sum loses precision and does not reach
+     the goal at the right time. So instead, a line equation is used. y = m * x + b.
+     */
+    return _private->inverseSlope * float(_private->samplesRemaining) + _private->_goal;
 }
 
-void ParameterRamper::step()
-{
+void ParameterRamper::step() {
     // Do this in each inner loop iteration after getting the value.
-    if (data->samplesRemaining != 0) {
-        --data->samplesRemaining;
+    if (_private->samplesRemaining != 0) {
+        --_private->samplesRemaining;
     }
 }
 
-float ParameterRamper::getAndStep()
-{
+float ParameterRamper::getAndStep() {
     // Combines get and step. Saves a multiply-add when not ramping.
-    if (data->samplesRemaining != 0) {
+    if (_private->samplesRemaining != 0) {
         float value = get();
-        --data->samplesRemaining;
+        --_private->samplesRemaining;
         return value;
-    } else {
-        return data->goal;
+    }
+    else {
+        return _private->_goal;
     }
 }
 
-void ParameterRamper::stepBy(uint32_t n)
-{
+void ParameterRamper::stepBy(uint32_t n) {
     /*
      When a parameter does not participate in the current inner loop, you
      will want to advance it after the end of the loop.
      */
-    if (n >= data->samplesRemaining) {
-        data->samplesRemaining = 0;
-    } else {
-        data->samplesRemaining -= n;
+    if (n >= _private->samplesRemaining) {
+        _private->samplesRemaining = 0;
+    }
+    else {
+        _private->samplesRemaining -= n;
     }
 }

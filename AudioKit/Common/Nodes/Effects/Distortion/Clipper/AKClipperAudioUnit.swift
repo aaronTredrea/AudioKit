@@ -11,41 +11,49 @@ import AVFoundation
 public class AKClipperAudioUnit: AKAudioUnitBase {
 
     func setParameter(_ address: AKClipperParameter, value: Double) {
-        setParameterWithAddress(address.rawValue, value: Float(value))
+        setParameterWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     func setParameterImmediately(_ address: AKClipperParameter, value: Double) {
-        setParameterImmediatelyWithAddress(address.rawValue, value: Float(value))
+        setParameterImmediatelyWithAddress(AUParameterAddress(address.rawValue), value: Float(value))
     }
 
     var limit: Double = AKClipper.defaultLimit {
         didSet { setParameter(.limit, value: limit) }
     }
 
-    var rampDuration: Double = 0.0 {
-        didSet { setParameter(.rampDuration, value: rampDuration) }
+    var rampTime: Double = 0.0 {
+        didSet { setParameter(.rampTime, value: rampTime) }
     }
 
     public override func initDSP(withSampleRate sampleRate: Double,
-                                 channelCount count: AVAudioChannelCount) -> AKDSPRef {
+                                 channelCount count: AVAudioChannelCount) -> UnsafeMutableRawPointer! {
         return createClipperDSP(Int32(count), sampleRate)
     }
 
     public override init(componentDescription: AudioComponentDescription,
-                         options: AudioComponentInstantiationOptions = []) throws {
+                  options: AudioComponentInstantiationOptions = []) throws {
         try super.init(componentDescription: componentDescription, options: options)
-        let limit = AUParameter(
-            identifier: "limit",
-            name: "Threshold",
-            address: AKClipperParameter.limit.rawValue,
-            range: AKClipper.limitRange,
-            unit: .generic,
-            flags: .default)
 
-        setParameterTree(AUParameterTree(children: [limit]))
+        let flags: AudioUnitParameterOptions = [.flag_IsReadable, .flag_IsWritable, .flag_CanRamp]
+
+        let limit = AUParameterTree.createParameter(
+            withIdentifier: "limit",
+            name: "Threshold",
+            address: AUParameterAddress(0),
+            min: Float(AKClipper.limitRange.lowerBound),
+            max: Float(AKClipper.limitRange.upperBound),
+            unit: .generic,
+            unitName: nil,
+            flags: flags,
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+
+        setParameterTree(AUParameterTree.createTree(withChildren: [limit]))
         limit.value = Float(AKClipper.defaultLimit)
     }
 
-    public override var canProcessInPlace: Bool { return true }
+    public override var canProcessInPlace: Bool { get { return true; }}
 
 }

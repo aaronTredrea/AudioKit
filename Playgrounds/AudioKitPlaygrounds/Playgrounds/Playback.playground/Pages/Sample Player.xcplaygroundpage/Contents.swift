@@ -7,7 +7,7 @@ import AudioKit
 let file = try AKAudioFile(readFileName: "alphabet.mp3")
 
 let samplePlayer = AKSamplePlayer(file: file) {
-    AKLog("Playback completed.")
+    print("Playback completed.")
 }
 
 AudioKit.output = samplePlayer

@@ -16,7 +16,7 @@
 }
 
 @synthesize parameterTree = _parameterTree;
-@synthesize rampDuration = _rampDuration;
+@synthesize rampTime = _rampTime;
 - (void)start {}
 - (void)stop {}
 - (BOOL)isPlaying {
@@ -26,13 +26,13 @@
     return NO;
 }
 
--(double)rampDuration {
-    return _rampDuration;
+-(double)rampTime {
+    return _rampTime;
 }
 
--(void)setRampDuration:(double)rampDuration {
-    if (_rampDuration == rampDuration) { return; }
-    _rampDuration = rampDuration;
+-(void)setRampTime:(double)rampTime {
+    if (_rampTime == rampTime) { return; }
+    _rampTime = rampTime;
     [self setUpParameterRamp];
 }
 
@@ -49,7 +49,7 @@
 
     // Initialize a default format for the busses.
     self.defaultFormat = [[AVAudioFormat alloc] initStandardFormatWithSampleRate:AKSettings.sampleRate
-                                                                        channels:AKSettings.channelCount];
+                                                                        channels:AKSettings.numberOfChannels];
 
     [self createParameters];
 
@@ -58,6 +58,8 @@
     _outputBusArray = [[AUAudioUnitBusArray alloc] initWithAudioUnit:self
                                                              busType:AUAudioUnitBusTypeOutput
                                                               busses: @[self.outputBus]];
+
+    self.maximumFramesToRender = 512;
 
     return self;
 }
@@ -98,11 +100,11 @@
      */
     __block AUScheduleParameterBlock scheduleParameter = self.scheduleParameterBlock;
 
-    // Ramp over rampDuration in seconds.
-    __block AUAudioFrameCount rampDuration = AUAudioFrameCount(_rampDuration * self.outputBus.format.sampleRate);
+    // Ramp over rampTime in seconds.
+    __block AUAudioFrameCount rampTime = AUAudioFrameCount(_rampTime * self.outputBus.format.sampleRate);
 
     self.parameterTree.implementorValueObserver = ^(AUParameter *param, AUValue value) {
-        scheduleParameter(AUEventSampleTimeImmediate, rampDuration, param.address, value);
+        scheduleParameter(AUEventSampleTimeImmediate, rampTime, param.address, value);
     };
 }
 
@@ -114,79 +116,55 @@
 
 @implementation AUParameter(Ext)
 
-//-(instancetype)init:(NSString *)identifier
-//               name:(NSString *)name
-//            address:(AUParameterAddress)address
-//                min:(AUValue)min
-//                max:(AUValue)max
-//               unit:(AudioUnitParameterUnit)unit
-//              flags:(AudioUnitParameterOptions)flags {
-//
-//    return self = [AUParameterTree createParameterWithIdentifier:identifier
-//                                                            name:name
-//                                                         address:address
-//                                                             min:min
-//                                                             max:max
-//                                                            unit:unit
-//                                                        unitName:nil
-//                                                           flags:flags
-//                                                    valueStrings:nil
-//                                             dependentParameters:nil];
-//}
+-(instancetype)init:(NSString *)identifier
+               name:(NSString *)name
+            address:(AUParameterAddress)address
+                min:(AUValue)min
+                max:(AUValue)max
+               unit:(AudioUnitParameterUnit)unit {
 
-+(instancetype)parameterWithIdentifier:(NSString *)identifier
-                                  name:(NSString *)name
-                               address:(AUParameterAddress)address
-                                   min:(AUValue)min
-                                   max:(AUValue)max
-                                  unit:(AudioUnitParameterUnit)unit
-                                 flags:(AudioUnitParameterOptions)flags {
-    return [AUParameterTree createParameterWithIdentifier:identifier
-                                                     name:name
-                                                  address:address
-                                                      min:min
-                                                      max:max
-                                                     unit:unit
-                                                 unitName:nil
-                                                    flags:flags
-                                             valueStrings:nil
-                                      dependentParameters:nil];
+    return self = [AUParameterTree createParameterWithIdentifier:identifier
+                                                            name:name
+                                                         address:address
+                                                             min:min
+                                                             max:max
+                                                            unit:unit
+                                                        unitName:nil
+                                                           flags:0
+                                                    valueStrings:nil
+                                             dependentParameters:nil];
 }
 
-+(instancetype)parameterWithIdentifier:(NSString *)identifier
-                                  name:(NSString *)name
-                               address:(AUParameterAddress)address
-                                   min:(AUValue)min
-                                   max:(AUValue)max
-                                  unit:(AudioUnitParameterUnit)unit {
-    return [AUParameterTree createParameterWithIdentifier:identifier
-                                                     name:name
-                                                  address:address
-                                                      min:min
-                                                      max:max
-                                                     unit:unit
-                                                 unitName:nil
-                                                    flags:0
-                                             valueStrings:nil
-                                      dependentParameters:nil];
++(instancetype)parameter:(NSString *)identifier
+                    name:(NSString *)name
+                 address:(AUParameterAddress)address
+                     min:(AUValue)min
+                     max:(AUValue)max
+                    unit:(AudioUnitParameterUnit)unit {
+    return [[AUParameter alloc] init:identifier
+                                name:name
+                             address:address
+                                 min:min
+                                 max:max
+                                unit:unit];
 }
 
-//+(instancetype)frequency:(NSString *)identifier
-//                    name:(NSString *)name
-//                 address:(AUParameterAddress)address {
-//    return [AUParameter parameterWithIdentifier:identifier
-//                             name:name
-//                          address:address
-//                              min:20
-//                              max:22050
-//                             unit:kAudioUnitParameterUnit_Hertz];
-
++(instancetype)frequency:(NSString *)identifier
+                    name:(NSString *)name
+                 address:(AUParameterAddress)address {
+    return [AUParameter parameter:identifier
+                             name:name
+                          address:address
+                              min:20
+                              max:22050
+                             unit:kAudioUnitParameterUnit_Hertz];
+}
 @end
 
 @implementation AUParameterTree(Ext)
 
-+(instancetype)treeWithChildren:(NSArray<AUParameter *> *)children {
-    AUParameterTree *tree = [AUParameterTree createTreeWithChildren:children];
++(instancetype)tree:(NSArray<AUParameterNode *> *)children {
+    AUParameterTree* tree = [AUParameterTree createTreeWithChildren:children];
     if (tree == nil) {
         return nil;
     }
@@ -199,23 +177,22 @@
     return tree;
 
 }
-
 @end
 
 
-//
-//@implementation AVAudioNode(Ext)
-//-(instancetype)initWithComponent:(AudioComponentDescription)component {
-//        self = [self init];
-//        __block AVAudioNode * __strong * _this = &self;
-//
-//  [AVAudioUnit instantiateWithComponentDescription:component
-//                                           options:0
-//                                 completionHandler:^(__kindof AVAudioUnit * _Nullable audioUnit,
-//                                                     NSError * _Nullable error) {
-//
-//                                   *_this = audioUnit;
-//                                 }];
-//  return self;
-//}
-//@end
+
+@implementation AVAudioNode(Ext)
+-(instancetype)initWithComponent:(AudioComponentDescription)component {
+		self = [self init];
+		__block AVAudioNode * __strong * _this = &self;
+
+  [AVAudioUnit instantiateWithComponentDescription:component
+                                           options:0
+                                 completionHandler:^(__kindof AVAudioUnit * _Nullable audioUnit,
+                                                     NSError * _Nullable error) {
+
+                                   *_this = audioUnit;
+                                 }];
+  return self;
+}
+@end

@@ -9,30 +9,30 @@
 #include "AKBrownianNoiseDSP.hpp"
 #import "AKLinearParameterRamp.hpp"
 
-extern "C" AKDSPRef createBrownianNoiseDSP(int channelCount, double sampleRate) {
-    AKBrownianNoiseDSP *dsp = new AKBrownianNoiseDSP();
-    dsp->init(channelCount, sampleRate);
+extern "C" void* createBrownianNoiseDSP(int nChannels, double sampleRate) {
+    AKBrownianNoiseDSP* dsp = new AKBrownianNoiseDSP();
+    dsp->init(nChannels, sampleRate);
     return dsp;
 }
 
-struct AKBrownianNoiseDSP::InternalData {
-    sp_brown *brown;
+struct AKBrownianNoiseDSP::_Internal {
+    sp_brown *_brown;
     AKLinearParameterRamp amplitudeRamp;
 };
 
-AKBrownianNoiseDSP::AKBrownianNoiseDSP() : data(new InternalData) {
-    data->amplitudeRamp.setTarget(defaultAmplitude, true);
-    data->amplitudeRamp.setDurationInSamples(defaultRampDurationSamples);
+AKBrownianNoiseDSP::AKBrownianNoiseDSP() : _private(new _Internal) {
+    _private->amplitudeRamp.setTarget(defaultAmplitude, true);
+    _private->amplitudeRamp.setDurationInSamples(defaultRampTimeSamples);
 }
 
 // Uses the ParameterAddress as a key
 void AKBrownianNoiseDSP::setParameter(AUParameterAddress address, AUValue value, bool immediate) {
     switch (address) {
         case AKBrownianNoiseParameterAmplitude:
-            data->amplitudeRamp.setTarget(clamp(value, amplitudeLowerBound, amplitudeUpperBound), immediate);
+            _private->amplitudeRamp.setTarget(clamp(value, amplitudeLowerBound, amplitudeUpperBound), immediate);
             break;
-        case AKBrownianNoiseParameterRampDuration:
-            data->amplitudeRamp.setRampDuration(value, sampleRate);
+        case AKBrownianNoiseParameterRampTime:
+            _private->amplitudeRamp.setRampTime(value, _sampleRate);
             break;
     }
 }
@@ -41,21 +41,22 @@ void AKBrownianNoiseDSP::setParameter(AUParameterAddress address, AUValue value,
 float AKBrownianNoiseDSP::getParameter(uint64_t address) {
     switch (address) {
         case AKBrownianNoiseParameterAmplitude:
-            return data->amplitudeRamp.getTarget();
-        case AKBrownianNoiseParameterRampDuration:
-            return data->amplitudeRamp.getRampDuration(sampleRate);
+            return _private->amplitudeRamp.getTarget();
+        case AKBrownianNoiseParameterRampTime:
+            return _private->amplitudeRamp.getRampTime(_sampleRate);
     }
     return 0;
 }
 
-void AKBrownianNoiseDSP::init(int channelCount, double sampleRate) {
-    AKSoundpipeDSPBase::init(channelCount, sampleRate);
-    sp_brown_create(&data->brown);
-    sp_brown_init(sp, data->brown);
+void AKBrownianNoiseDSP::init(int _channels, double _sampleRate) {
+    AKSoundpipeDSPBase::init(_channels, _sampleRate);
+    sp_brown_create(&_private->_brown);
+    sp_brown_init(_sp, _private->_brown);
 }
 
-void AKBrownianNoiseDSP::deinit() {
-    sp_brown_destroy(&data->brown);
+void AKBrownianNoiseDSP::destroy() {
+    sp_brown_destroy(&_private->_brown);
+    AKSoundpipeDSPBase::destroy();
 }
 
 void AKBrownianNoiseDSP::process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) {
@@ -65,18 +66,18 @@ void AKBrownianNoiseDSP::process(AUAudioFrameCount frameCount, AUAudioFrameCount
 
         // do ramping every 8 samples
         if ((frameOffset & 0x7) == 0) {
-            data->amplitudeRamp.advanceTo(now + frameOffset);
+            _private->amplitudeRamp.advanceTo(_now + frameOffset);
         }
 
         float temp = 0;
-        for (int channel = 0; channel < channelCount; ++channel) {
-            float *out = (float *)outBufferListPtr->mBuffers[channel].mData + frameOffset;
+        for (int channel = 0; channel < _nChannels; ++channel) {
+            float* out = (float *)_outBufferListPtr->mBuffers[channel].mData + frameOffset;
 
-            if (isStarted) {
+            if (_playing) {
                 if (channel == 0) {
-                    sp_brown_compute(sp, data->brown, nil, &temp);
+                    sp_brown_compute(_sp, _private->_brown, nil, &temp);
                 }
-                *out = temp * data->amplitudeRamp.getValue();
+                *out = temp * _private->amplitudeRamp.getValue();
             } else {
                 *out = 0.0;
             }
