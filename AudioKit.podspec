@@ -31,12 +31,19 @@ TODO: Add long description of the pod here.
   s.ios.deployment_target = '8.0'
 
   s.source_files = 'iOS/AudioKit.framework/Headers/*.h'
+  s.public_header_files = 'iOS/AudioKit.framework/Headers/*.h'
+  s.vendored_frameworks = 'iOS/AudioKit.framework'
+
+        # "source_files": "iOS/AudioKit.framework/Headers/*.h",
+        # "public_header_files": "iOS/AudioKit.framework/Headers/*.h",
+        # "vendored_frameworks": "iOS/AudioKit.framework"
   
   # s.resource_bundles = {
   #   'ATAudioKit' => ['ATAudioKit/Assets/*.png']
   # }
 
-  # s.public_header_files = 'Pod/Classes/**/*.h'
+   #s.public_header_files = 'iOS/AudioKit.framework/Headers/*.h'
+
   # s.frameworks = 'UIKit', 'MapKit'
   # s.dependency 'AFNetworking', '~> 2.3'
 end
