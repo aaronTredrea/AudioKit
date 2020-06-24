@@ -34,6 +34,18 @@ TODO: Add long description of the pod here.
   s.public_header_files = 'iOS/AudioKit.framework/Headers/*.h'
   s.vendored_frameworks = 'iOS/AudioKit.framework'
 
+  s.platforms = { :ios => "9.0", :osx => "10.11", :tvos => "9.0" }
+
+
+
+   s.frameworks = 'AVFoundation'
+   s.libraries = 'stdc++'
+   s.user_target_xcconfig = { 'ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES' => 'YES', 'LIBRARY_SEARCH_PATHS' => '$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)'}
+
+  # s.dependency 'AFNetworking', '~> 2.3'
+
+
+
         # "source_files": "iOS/AudioKit.framework/Headers/*.h",
         # "public_header_files": "iOS/AudioKit.framework/Headers/*.h",
         # "vendored_frameworks": "iOS/AudioKit.framework"
@@ -44,6 +56,4 @@ TODO: Add long description of the pod here.
 
    #s.public_header_files = 'iOS/AudioKit.framework/Headers/*.h'
 
-  # s.frameworks = 'UIKit', 'MapKit'
-  # s.dependency 'AFNetworking', '~> 2.3'
 end
