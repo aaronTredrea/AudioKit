@@ -30,7 +30,7 @@ TODO: Add long description of the pod here.
 
   s.ios.deployment_target = '8.0'
 
-  s.source_files = 'AudioKit/*'
+  s.source_files = 'iOS/AudioKit.framework/Headers/*.h'
   
   # s.resource_bundles = {
   #   'ATAudioKit' => ['ATAudioKit/Assets/*.png']
