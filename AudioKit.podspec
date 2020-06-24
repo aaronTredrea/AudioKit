@@ -40,7 +40,7 @@ TODO: Add long description of the pod here.
 
    s.frameworks = 'AVFoundation'
    s.libraries = 'stdc++'
-   s.user_target_xcconfig = { 'ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES' => 'YES', 'LIBRARY_SEARCH_PATHS' => '$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)'}
+   #s.user_target_xcconfig = { 'ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES' => 'YES', 'LIBRARY_SEARCH_PATHS' => '$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)'}
 
   # s.dependency 'AFNetworking', '~> 2.3'
 
